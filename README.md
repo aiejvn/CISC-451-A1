@@ -1,3 +1,5 @@
+Run `python build_spider_dbs.py` before proceeding.
+
 # Task 1:
 
 * Decoder-only LLMs
