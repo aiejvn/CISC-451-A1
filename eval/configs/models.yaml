@@ -12,11 +12,8 @@ models:
   - author: openai
     name: gpt-oss-20b
     family: gpt_oss
-    quantization: none   # ships MXFP4; likely needs CPU offload on 8GB VRAM
+    quantization: none  
     reasoning_effort: low
   - author: deepseek-ai
-    name: DeepSeek-R1-Distill-Qwen-7B
-    family: reasoning_default
-  - author: microsoft
-    name: Phi-4-mini-reasoning
+    name: DeepSeek-R1-Distill-Qwen-14B
     family: reasoning_default

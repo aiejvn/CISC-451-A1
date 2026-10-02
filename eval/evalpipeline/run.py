@@ -2,11 +2,9 @@ import argparse
 import csv
 from datetime import datetime
 
-from .config import get_model_config, load_model_configs
-from .dataset import load_dev
+from .common import RESULTS_DIR, get_model_config, load_dev, load_model_configs
 from .evaluate import evaluate_run
 from .generate import generate, make_run_dir
-from .paths import RESULTS_DIR
 
 LEVELS = ["easy", "medium", "hard", "extra", "all"]
 

@@ -5,7 +5,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from .paths import DB_DIR, EVALUATION_PY, SPIDER_DIR, TABLES_JSON
+from .common import DB_DIR, EVALUATION_PY, SPIDER_DIR, TABLES_JSON
 
 ROW_RE = re.compile(r"^(\S.*?)\s{2,}(-?\d+(?:\.\d+)?(?:\s+-?\d+(?:\.\d+)?)*)\s*$")
 SECTION_RE = re.compile(r"^[=\-]+\s*([A-Za-z0-9 ]+?)\s*[=\-]+$")
@@ -39,7 +39,7 @@ def parse_eval_output(text: str) -> dict:
 def evaluate_run(run_dir: Path, etype: str = "match") -> dict:
     run_dir = Path(run_dir)
     if not DB_DIR.exists():
-        raise FileNotFoundError(f"{DB_DIR} missing; run eval/data/build_spider_dbs.py first")
+        raise FileNotFoundError(f"{DB_DIR} missing; check the spider submodule is checked out")
     proc = subprocess.run(
         [
             sys.executable, str(EVALUATION_PY),
