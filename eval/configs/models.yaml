@@ -1,7 +1,7 @@
 defaults:
   quantization: nf4      # nf4 | int8 | bf16 | none (none = checkpoint's native dtype)
   max_new_tokens: 2048
-  batch_size: 64
+  batch_size: 32
 
 # Models are HF repo ids ({author}/{name}); the HF cache downloads them on first use.
 models:

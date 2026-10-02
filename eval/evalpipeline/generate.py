@@ -1,6 +1,7 @@
 import argparse
 import gc
 import json
+import os
 import time
 from datetime import datetime
 from pathlib import Path
@@ -11,6 +12,9 @@ from tqdm import tqdm
 from .adapters import get_adapter
 from .common import RESULTS_DIR, build_user_prompt, get_model_config, load_dev, resolve_local_path, write_gold
 
+# Must be set before CUDA initialises (torch is imported lazily below) to limit fragmentation from varying batch shapes.
+os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
+
 
 def make_run_dir(repo_id: str, run_id: str | None = None) -> Path:
     run_id = run_id or datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -19,12 +23,12 @@ def make_run_dir(repo_id: str, run_id: str | None = None) -> Path:
     return path
 
 
-def load_model(cfg: dict):
+def load_model(cfg: dict, models_path: Path | None = None):
     import torch
     from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 
     repo_id = cfg["repo_id"]
-    local_path = resolve_local_path(repo_id)
+    local_path = resolve_local_path(repo_id, models_path)
     quant = cfg.get("quantization", "nf4")
     kwargs = {"device_map": cfg.get("device_map", "auto")}
     if quant == "nf4":
@@ -50,13 +54,13 @@ def load_model(cfg: dict):
     return model, tokenizer
 
 
-def generate(cfg: dict, examples: list[dict], run_dir: Path, seed: int = 0) -> Path:
+def generate(cfg: dict, examples: list[dict], run_dir: Path, seed: int = 0, models_path: Path | None = None) -> Path:
     import torch
     from transformers import set_seed
 
     set_seed(seed)
     adapter = get_adapter(cfg)
-    model, tokenizer = load_model(cfg)
+    model, tokenizer = load_model(cfg, models_path)
     gen_kwargs = adapter.generation_kwargs()
     batch_size = cfg.get("batch_size", 1)
 
@@ -67,6 +71,7 @@ def generate(cfg: dict, examples: list[dict], run_dir: Path, seed: int = 0) -> P
     )
 
     pred_lines = []
+    inputs = out = new_tokens = toks = None  # last-batch tensors; released before cache cleanup
     with open(run_dir / "generations.jsonl", "w") as gens:
         for start in tqdm(range(0, len(examples), batch_size), desc=cfg["repo_id"]):
             batch = examples[start : start + batch_size]
@@ -116,7 +121,7 @@ def generate(cfg: dict, examples: list[dict], run_dir: Path, seed: int = 0) -> P
 
     (run_dir / "pred.txt").write_text("\n".join(pred_lines) + "\n")
 
-    del model, tokenizer
+    del model, tokenizer, inputs, out, new_tokens, toks
     gc.collect()
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
@@ -130,13 +135,14 @@ def main() -> None:
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--batch-size", type=int, default=None)
     ap.add_argument("--run-id", default=None)
+    ap.add_argument("--models-path", type=Path, default=None, help="look for weights in <path>/<repo_id> first, e.g. ./models")
     args = ap.parse_args()
 
     cfg = get_model_config(args.model)
     if args.batch_size:
         cfg["batch_size"] = args.batch_size
     run_dir = make_run_dir(cfg["repo_id"], args.run_id)
-    generate(cfg, load_dev(args.limit, args.seed), run_dir, args.seed)
+    generate(cfg, load_dev(args.limit, args.seed), run_dir, args.seed, args.models_path)
     print(run_dir)
 
 
