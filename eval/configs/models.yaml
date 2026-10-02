@@ -12,7 +12,7 @@ models:
     max_new_tokens: 256
   - author: allenai
     name: OLMo-2-0425-1B-Instruct   # base gemma-4-E2B ships no chat template
-    family: OLMo
+    family: olmo
     thinking: false
     quantization: bf16     # ~10 GB; per-layer embeddings make nf4 risky
     max_new_tokens: 256

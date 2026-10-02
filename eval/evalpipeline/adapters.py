@@ -101,6 +101,10 @@ class ReasoningAdapter(ModelAdapter):
         return raw.replace("<think>", "").strip(), ""
 
 
+class OlmoAdapter(ModelAdapter):
+    """OLMo-2 Instruct: plain chat template, no thinking mode; greedy decoding."""
+
+
 GEMMA_SPECIAL_RE = re.compile(r"<turn\|>|<\|turn>|<eos>|<pad>|<bos>")
 
 
@@ -141,6 +145,7 @@ ADAPTERS = {
     "reasoning_default": ReasoningAdapter,
     "gpt_oss": GptOssAdapter,
     "gemma4": Gemma4Adapter,
+    "olmo": OlmoAdapter,
 }
 
 
