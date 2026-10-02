@@ -1,3 +1,5 @@
+# python -m eval.evalpipeline.run
+
 import argparse
 import csv
 from datetime import datetime

@@ -8,6 +8,7 @@ models:
   - author: Qwen
     name: Qwen3-8B
     family: qwen3
+    quantization: none  
     thinking: false
   - author: openai
     name: gpt-oss-20b
@@ -17,3 +18,4 @@ models:
   - author: deepseek-ai
     name: DeepSeek-R1-Distill-Qwen-14B
     family: reasoning_default
+    quantization: none  

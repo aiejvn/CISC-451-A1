@@ -63,7 +63,7 @@ class GptOssAdapter(ModelAdapter):
         return {"reasoning_effort": self.cfg.get("reasoning_effort", "low")}
 
     def default_generation(self) -> dict:
-        return {"do_sample": True, "temperature": 1.0, "top_p": 1.0}
+        return {"do_sample": False}
 
     def split_thinking(self, raw: str) -> tuple[str | None, str]:
         analysis = ANALYSIS_RE.search(raw)
@@ -82,10 +82,7 @@ class Qwen3Adapter(ModelAdapter):
         return {"enable_thinking": self.thinking}
 
     def default_generation(self) -> dict:
-        # Sampling values from the Qwen3 model card; greedy is discouraged.
-        if self.thinking:
-            return {"do_sample": True, "temperature": 0.6, "top_p": 0.95, "top_k": 20}
-        return {"do_sample": True, "temperature": 0.7, "top_p": 0.8, "top_k": 20}
+        return {"do_sample": False}
 
 
 class ReasoningAdapter(ModelAdapter):
@@ -96,7 +93,7 @@ class ReasoningAdapter(ModelAdapter):
     """
 
     def default_generation(self) -> dict:
-        return {"do_sample": True, "temperature": 0.6, "top_p": 0.95}
+        return {"do_sample": False}
 
     def split_thinking(self, raw: str) -> tuple[str | None, str]:
         if "</think>" in raw:

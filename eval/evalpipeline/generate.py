@@ -88,7 +88,7 @@ def generate(cfg: dict, examples: list[dict], run_dir: Path, seed: int = 0) -> P
                     **gen_kwargs,
                 )
             latency = time.time() - t0
-            new_tokens = out[:, inputs["input_ids"].shape[1] :]
+            new_tokens = out[:, inputs["input_ids"].shape[1] :] # take only tokens autoregressed after prefill
             for ex, toks in zip(batch, new_tokens):
                 raw = tokenizer.decode(toks, skip_special_tokens=adapter.skip_special_tokens)
                 if not adapter.skip_special_tokens and tokenizer.pad_token:

@@ -1,5 +1,6 @@
 import argparse
 import json
+import os
 import re
 import subprocess
 import sys
@@ -50,6 +51,7 @@ def evaluate_run(run_dir: Path, etype: str = "match") -> dict:
             "--etype", etype,
         ],
         cwd=SPIDER_DIR,
+        env={**os.environ, "PYTHONPATH": os.pathsep.join(filter(None, [str(SPIDER_DIR), os.environ.get("PYTHONPATH")]))},
         capture_output=True,
         text=True,
     )
