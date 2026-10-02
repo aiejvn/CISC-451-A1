@@ -70,7 +70,8 @@ def generate(cfg: dict, examples: list[dict], run_dir: Path, seed: int = 0) -> P
     pred_lines = []
     inputs = out = new_tokens = toks = None  # last-batch tensors; released before cache cleanup
     with open(run_dir / "generations.jsonl", "w") as gens:
-        for start in tqdm(range(0, len(examples), batch_size), desc=cfg["repo_id"]):
+        bar = tqdm(range(0, len(examples), batch_size), desc=cfg["repo_id"])
+        for start in bar:
             batch = examples[start : start + batch_size]
             texts = [
                 tokenizer.apply_chat_template(
@@ -115,6 +116,7 @@ def generate(cfg: dict, examples: list[dict], run_dir: Path, seed: int = 0) -> P
                     + "\n"
                 )
                 gens.flush()
+            bar.set_postfix_str(datetime.now().strftime("%H:%M:%S"))
 
     (run_dir / "pred.txt").write_text("\n".join(pred_lines) + "\n")
 

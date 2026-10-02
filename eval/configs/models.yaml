@@ -1,18 +1,21 @@
 defaults:
-  quantization: nf4      # nf4 | int8 | bf16 | none (none = checkpoint's native dtype)
+  quantization: bf16      # nf4 | int8 | bf16 | none (none = checkpoint's native dtype)
   max_new_tokens: 2048
-  batch_size: 32
+  batch_size: 1
 
 # Models are HF repo ids ({author}/{name}); the HF cache downloads them on first use.
 models:
   - author: Qwen
-    name: Qwen3-8B
+    name: Qwen3-0.6B
     family: qwen3
     thinking: false
-  - author: openai
-    name: gpt-oss-20b
-    family: gpt_oss
-    reasoning_effort: low
+  - author: google
+    name: gemma-4-E2B-it   # base gemma-4-E2B ships no chat template
+    family: gemma4
+    thinking: false
+    quantization: bf16     # ~10 GB; per-layer embeddings make nf4 risky
   - author: deepseek-ai
-    name: DeepSeek-R1-Distill-Qwen-14B
+    name: DeepSeek-R1-Distill-Qwen-1.5B
     family: reasoning_default
+    quantization: bf16     # 1.5B is small (3.6 GB); nf4 costs accuracy
+    max_new_tokens: 4096   # reasoning trace truncated at 2048 -> fallback SQL

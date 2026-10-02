@@ -101,11 +101,46 @@ class ReasoningAdapter(ModelAdapter):
         return raw.replace("<think>", "").strip(), ""
 
 
+GEMMA_SPECIAL_RE = re.compile(r"<turn\|>|<\|turn>|<eos>|<pad>|<bos>")
+
+
+class Gemma4Adapter(ModelAdapter):
+    """Gemma 4 -it: <|channel>thought\n...<channel|>answer<turn|>; thinking toggled by enable_thinking.
+
+    The channel/turn markers are special tokens, so decoding keeps them and they are stripped here.
+    """
+
+    skip_special_tokens = False
+
+    @property
+    def thinking(self) -> bool:
+        return bool(self.cfg.get("thinking", False))
+
+    def chat_template_kwargs(self) -> dict:
+        return {"enable_thinking": self.thinking}
+
+    def default_generation(self) -> dict:
+        # Greedy, like the other adapters. Model-card sampling is temperature=1.0, top_p=0.95, top_k=64;
+        # set it per model with `generation:` in models.yaml.
+        return {"do_sample": False}
+
+    def split_thinking(self, raw: str) -> tuple[str | None, str]:
+        if "<channel|>" in raw:
+            thinking, answer = raw.rsplit("<channel|>", 1)
+            thinking = thinking.replace("<|channel>thought", "").strip() or None
+        elif "<|channel>" in raw:  # truncated inside the thought channel
+            return raw.replace("<|channel>thought", "").strip(), ""
+        else:
+            thinking, answer = None, raw
+        return thinking, GEMMA_SPECIAL_RE.sub(" ", answer)
+
+
 ADAPTERS = {
     "default": ModelAdapter,
     "qwen3": Qwen3Adapter,
     "reasoning_default": ReasoningAdapter,
     "gpt_oss": GptOssAdapter,
+    "gemma4": Gemma4Adapter,
 }
 
 
