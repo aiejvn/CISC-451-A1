@@ -12,9 +12,6 @@ from tqdm import tqdm
 from .adapters import get_adapter
 from .common import RESULTS_DIR, build_user_prompt, get_model_config, load_dev, resolve_local_path, write_gold
 
-# Must be set before CUDA initialises (torch is imported lazily below) to limit fragmentation from varying batch shapes.
-os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
-
 
 def make_run_dir(repo_id: str, run_id: str | None = None) -> Path:
     run_id = run_id or datetime.now().strftime("%Y%m%d-%H%M%S")
