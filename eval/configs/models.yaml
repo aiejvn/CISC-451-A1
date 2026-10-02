@@ -9,11 +9,13 @@ models:
     name: Qwen3-0.6B
     family: qwen3
     thinking: false
-  - author: google
-    name: gemma-4-E2B-it   # base gemma-4-E2B ships no chat template
-    family: gemma4
+    max_new_tokens: 256
+  - author: allenai
+    name: OLMo-2-0425-1B-Instruct   # base gemma-4-E2B ships no chat template
+    family: OLMo
     thinking: false
     quantization: bf16     # ~10 GB; per-layer embeddings make nf4 risky
+    max_new_tokens: 256
   - author: deepseek-ai
     name: DeepSeek-R1-Distill-Qwen-1.5B
     family: reasoning_default
