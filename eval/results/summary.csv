@@ -1,4 +1,0 @@
-model,run,n,family,quantization,exact_easy,exact_medium,exact_hard,exact_extra,exact_all,exec_easy,exec_medium,exec_hard,exec_extra,exec_all
-Qwen/Qwen3-8B,20260929-171535,5,qwen3,nf4,0.0,0.25,0.0,0.0,0.2,,,,,
-Qwen/Qwen3-8B,20260929-203009,1034,qwen3,nf4,,,,,,,,,,
-Qwen/Qwen3-8B,20260929-223432,1034,qwen3,nf4,,,,,,,,,,

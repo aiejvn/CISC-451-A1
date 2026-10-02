@@ -1,5 +1,0 @@
-SELECT Fname, Sex FROM Student WHERE StuID IN ( SELECT StuID FROM Has_Pet GROUP BY StuID HAVING COUNT(PetID) > 1 )
-SELECT s.semester_id, s.semester_name, COUNT(DISTINCT se.student_id) AS num_students FROM Semesters s JOIN Student_Enrolment se ON s.semester_id = se.semester_id GROUP BY s.semester_id, s.semester_name ORDER BY num_students DESC LIMIT 1
-SELECT c.Name, c.IndepYear, c.SurfaceArea FROM country c ORDER BY c.Population ASC LIMIT 1
-SELECT DISTINCT o.Year_of_Founded FROM orchestra o JOIN performance p ON o.Orchestra_ID = p.Orchestra_ID GROUP BY o.Orchestra_ID HAVING COUNT(DISTINCT p.Performance_ID) > 1
-SELECT email_address, cell_number, home_phone FROM Professionals
