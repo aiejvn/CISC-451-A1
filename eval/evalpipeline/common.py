@@ -101,8 +101,10 @@ def build_user_prompt(question: str, db_id: str) -> str:
 
 
 # --- local-first HF weight resolution ----------------------------------------
-def resolve_local_path(repo_id: str) -> str:
-    """Return the cached snapshot path; download once if not cached yet."""
+def resolve_local_path(repo_id: str, models_path: Path | None = None) -> str:
+    """Return <models_path>/<repo_id> if present, else the cached snapshot (downloading once if needed)."""
+    if models_path is not None and (models_path / repo_id).is_dir():
+        return str(models_path / repo_id)
     try:
         return snapshot_download(repo_id, local_files_only=True)
     except LocalEntryNotFoundError:
