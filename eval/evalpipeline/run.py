@@ -4,7 +4,6 @@
 import argparse
 import csv
 from datetime import datetime
-from pathlib import Path
 
 from .common import RESULTS_DIR, get_model_config, load_dev, load_model_configs
 from .evaluate import evaluate_run
@@ -36,7 +35,6 @@ def main() -> None:
     ap.add_argument("--batch-size", type=int, default=None)
     ap.add_argument("--run-id", default=datetime.now().strftime("%Y%m%d-%H%M%S"))
     ap.add_argument("--skip-generate", action="store_true", help="only re-evaluate existing run dirs with --run-id")
-    ap.add_argument("--models-path", type=Path, default=None, help="look for weights in <path>/<repo_id> first, e.g. ./models")
     args = ap.parse_args()
 
     repo_ids = args.models or list(load_model_configs())
@@ -47,7 +45,7 @@ def main() -> None:
             cfg["batch_size"] = args.batch_size
         run_dir = make_run_dir(repo_id, args.run_id)
         if not args.skip_generate:
-            generate(cfg, examples, run_dir, args.seed, args.models_path)
+            generate(cfg, examples, run_dir, args.seed)
         metrics = evaluate_run(run_dir, args.etype)
         append_summary(cfg, run_dir, len(examples), metrics)
         print(f"{repo_id}: exact match (all) = "
