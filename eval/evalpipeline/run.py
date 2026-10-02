@@ -37,8 +37,11 @@ def main() -> None:
     ap.add_argument("--run-id", default=datetime.now().strftime("%Y%m%d-%H%M%S"))
     ap.add_argument("--skip-generate", action="store_true", help="only re-evaluate existing run dirs with --run-id")
     ap.add_argument("--models-path", type=Path, default=None, help="look for weights in <path>/<repo_id> first, e.g. ./models")
+    ap.add_argument("--local-only", action="store_true", help="require weights under --models-path; never use the HF cache or network")
     args = ap.parse_args()
 
+    if args.local_only and args.models_path is None:
+        ap.error("--local-only requires --models-path")
     repo_ids = args.models or list(load_model_configs())
     examples = load_dev(args.limit, args.seed)
     for repo_id in repo_ids:
@@ -47,7 +50,7 @@ def main() -> None:
             cfg["batch_size"] = args.batch_size
         run_dir = make_run_dir(repo_id, args.run_id)
         if not args.skip_generate:
-            generate(cfg, examples, run_dir, args.seed, args.models_path)
+            generate(cfg, examples, run_dir, args.seed, args.models_path, args.local_only)
         metrics = evaluate_run(run_dir, args.etype)
         append_summary(cfg, run_dir, len(examples), metrics)
         print(f"{repo_id}: exact match (all) = "

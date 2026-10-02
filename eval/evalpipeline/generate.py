@@ -20,12 +20,12 @@ def make_run_dir(repo_id: str, run_id: str | None = None) -> Path:
     return path
 
 
-def load_model(cfg: dict, models_path: Path | None = None):
+def load_model(cfg: dict, models_path: Path | None = None, local_only: bool = False):
     import torch
     from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 
     repo_id = cfg["repo_id"]
-    local_path = resolve_local_path(repo_id, models_path)
+    local_path = resolve_local_path(repo_id, models_path, local_only)
     quant = cfg.get("quantization", "nf4")
     kwargs = {"device_map": cfg.get("device_map", "auto")}
     if quant == "nf4":
@@ -51,13 +51,14 @@ def load_model(cfg: dict, models_path: Path | None = None):
     return model, tokenizer
 
 
-def generate(cfg: dict, examples: list[dict], run_dir: Path, seed: int = 0, models_path: Path | None = None) -> Path:
+def generate(cfg: dict, examples: list[dict], run_dir: Path, seed: int = 0, models_path: Path | None = None,
+             local_only: bool = False) -> Path:
     import torch
     from transformers import set_seed
 
     set_seed(seed)
     adapter = get_adapter(cfg)
-    model, tokenizer = load_model(cfg, models_path)
+    model, tokenizer = load_model(cfg, models_path, local_only)
     gen_kwargs = adapter.generation_kwargs()
     batch_size = cfg.get("batch_size", 1)
 
@@ -135,13 +136,16 @@ def main() -> None:
     ap.add_argument("--batch-size", type=int, default=None)
     ap.add_argument("--run-id", default=None)
     ap.add_argument("--models-path", type=Path, default=None, help="look for weights in <path>/<repo_id> first, e.g. ./models")
+    ap.add_argument("--local-only", action="store_true", help="require weights under --models-path; never use the HF cache or network")
     args = ap.parse_args()
 
+    if args.local_only and args.models_path is None:
+        ap.error("--local-only requires --models-path")
     cfg = get_model_config(args.model)
     if args.batch_size:
         cfg["batch_size"] = args.batch_size
     run_dir = make_run_dir(cfg["repo_id"], args.run_id)
-    generate(cfg, load_dev(args.limit, args.seed), run_dir, args.seed, args.models_path)
+    generate(cfg, load_dev(args.limit, args.seed), run_dir, args.seed, args.models_path, args.local_only)
     print(run_dir)
 
 

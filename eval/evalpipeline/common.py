@@ -101,10 +101,30 @@ def build_user_prompt(question: str, db_id: str) -> str:
 
 
 # --- local-first HF weight resolution ----------------------------------------
-def resolve_local_path(repo_id: str, models_path: Path | None = None) -> str:
-    """Return <models_path>/<repo_id> if present, else the cached snapshot (downloading once if needed)."""
-    if models_path is not None and (models_path / repo_id).is_dir():
-        return str(models_path / repo_id)
+def _local_dir(repo_id: str, models_path: Path) -> Path | None:
+    """<models_path>/<author>/<name> or flat <models_path>/<name>, if it holds a model (config.json)."""
+    models_path = models_path.expanduser()
+    for cand in (models_path / repo_id, models_path / repo_id.split("/")[-1]):
+        if (cand / "config.json").is_file():
+            return cand
+    return None
+
+
+def resolve_local_path(repo_id: str, models_path: Path | None = None, local_only: bool = False) -> str:
+    """Return a local weights dir: <models_path>/... if present, else the HF cache (downloading once unless local_only).
+
+    With local_only, never touches the network and raises if the weights are not under models_path.
+    """
+    if models_path is not None:
+        found = _local_dir(repo_id, models_path)
+        if found is not None:
+            print(f"\n>>> LOADING {repo_id} FROM LOCAL DIR {found} (HuggingFace skipped) <<<\n", flush=True)
+            return str(found)
+    if local_only:
+        raise FileNotFoundError(
+            f"--local-only: no model for {repo_id!r} under {models_path} "
+            f"(expected {models_path}/{repo_id}/config.json or {models_path}/{repo_id.split('/')[-1]}/config.json)"
+        )
     try:
         return snapshot_download(repo_id, local_files_only=True)
     except LocalEntryNotFoundError:
