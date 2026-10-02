@@ -44,8 +44,9 @@ def get_model_config(repo_id: str, path: Path = MODELS_CONFIG) -> dict:
 
 # --- data (repo-root train.json / dev.json) ----------------------------------
 def load_split(path: Path, limit: int | None = None, seed: int = 0) -> list[dict]:
+    """Load a split; each example gets "id" = its index in the source file."""
     with open(path) as f:
-        examples = json.load(f)
+        examples = [{**ex, "id": i} for i, ex in enumerate(json.load(f))]
     if limit is not None and limit < len(examples):
         idx = sorted(random.Random(seed).sample(range(len(examples)), limit))
         examples = [examples[i] for i in idx]

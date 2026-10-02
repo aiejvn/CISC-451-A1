@@ -62,7 +62,8 @@ def generate(cfg: dict, examples: list[dict], run_dir: Path, seed: int = 0) -> P
 
     write_gold(examples, run_dir / "gold.txt")
     (run_dir / "config_used.yaml").write_text(
-        yaml.safe_dump({"model": cfg, "generation": gen_kwargs, "n_examples": len(examples), "seed": seed})
+        yaml.safe_dump({"model": cfg, "generation": gen_kwargs, "n_examples": len(examples), "seed": seed,
+         "ids": [ex["id"] for ex in examples]})
     )
 
     pred_lines = []
@@ -98,6 +99,7 @@ def generate(cfg: dict, examples: list[dict], run_dir: Path, seed: int = 0) -> P
                 gens.write(
                     json.dumps(
                         {
+                            "id": ex["id"],
                             "db_id": ex["db_id"],
                             "question": ex["question"],
                             "gold": ex["query"],
