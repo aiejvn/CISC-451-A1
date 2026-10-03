@@ -134,6 +134,8 @@ Figure [n]: SQL query examples in 4 hardness levels. Credit: Spider [citation ne
 
 Below we report how Qwen3-0.6B, OLMo-2, and Deepseek-R1-Distill-Qwen3-1.5B perform on the Spider benchmark across all 3 metrics (Component Matching, Exact Matching Accuracy, Execution Accuracy). We calculate the values per problem difficulty as well as overall, and display them in the below tables.
 
+All models are evaluated zero-shot with the same prompt on the 20 Spider dev databases. Aggregated across all difficulties and databases, performance is low for every model: execution accuracy is 0.121 to 0.209 and exact matching accuracy is 0.085 to 0.123. Execution accuracy exceeds exact matching accuracy for every model (for example 0.209 vs 0.099 for Qwen3-0.6B), so at least part of the executed-correct output is written differently from the gold SQL. No model is best everywhere: the ranking depends on the metric, the database and the problem difficulty.
+
 #### 1. Component matching (accuracy / recall / F1)
 
 | Model | easy | medium | hard | extra | all |
@@ -161,7 +163,57 @@ Below we report how Qwen3-0.6B, OLMo-2, and Deepseek-R1-Distill-Qwen3-1.5B perfo
 | OLMo-2-0425-1B-Instruct | 0.452 | 0.152 | 0.109 | 0.018 | 0.195 |
 | DeepSeek-R1-Distill-Qwen-1.5B | 0.258 | 0.128 | 0.017 | 0.006 | 0.121 |
 
-#### 4. Average generated tokens per problem
+#### 4. Execution accuracy by database (domain)
+
+| Database | Problems (n) | Qwen3-0.6B | OLMo-2-0425-1B-Instruct | DeepSeek-R1-Distill-Qwen-1.5B |
+|---|---|---|---|---|
+| world_1 | 120 | 0.183 | 0.100 | 0.108 |
+| car_1 | 92 | 0.109 | 0.207 | 0.054 |
+| cre_Doc_Template_Mgt | 84 | 0.202 | 0.250 | 0.071 |
+| dog_kennels | 82 | 0.159 | 0.098 | 0.085 |
+| flight_2 | 80 | 0.263 | 0.300 | 0.250 |
+| student_transcripts_tracking | 78 | 0.128 | 0.244 | 0.064 |
+| wta_1 | 62 | 0.161 | 0.274 | 0.129 |
+| tvshow | 62 | 0.339 | 0.226 | 0.129 |
+| network_1 | 56 | 0.286 | 0.232 | 0.179 |
+| concert_singer | 45 | 0.111 | 0.089 | 0.000 |
+| pets_1 | 42 | 0.167 | 0.048 | 0.071 |
+| poker_player | 40 | 0.250 | 0.175 | 0.225 |
+| orchestra | 40 | 0.350 | 0.225 | 0.100 |
+| employee_hire_evaluation | 38 | 0.105 | 0.158 | 0.132 |
+| course_teach | 30 | 0.100 | 0.133 | 0.100 |
+| singer | 30 | 0.533 | 0.367 | 0.267 |
+| museum_visit | 18 | 0.278 | 0.278 | 0.222 |
+| battle_death | 16 | 0.375 | 0.188 | 0.188 |
+| voter_1 | 15 | 0.267 | 0.200 | 0.267 |
+| real_estate_properties | 4 | 0.500 | 0.250 | 0.000 |
+
+#### 5. Exact matching accuracy by database (domain)
+
+| Database | Problems (n) | Qwen3-0.6B | OLMo-2-0425-1B-Instruct | DeepSeek-R1-Distill-Qwen-1.5B |
+|---|---|---|---|---|
+| world_1 | 120 | 0.067 | 0.050 | 0.025 |
+| car_1 | 92 | 0.043 | 0.152 | 0.033 |
+| cre_Doc_Template_Mgt | 84 | 0.071 | 0.143 | 0.071 |
+| dog_kennels | 82 | 0.085 | 0.037 | 0.061 |
+| flight_2 | 80 | 0.075 | 0.100 | 0.200 |
+| student_transcripts_tracking | 78 | 0.090 | 0.128 | 0.064 |
+| wta_1 | 62 | 0.065 | 0.226 | 0.129 |
+| tvshow | 62 | 0.226 | 0.194 | 0.097 |
+| network_1 | 56 | 0.125 | 0.214 | 0.179 |
+| concert_singer | 45 | 0.022 | 0.022 | 0.000 |
+| pets_1 | 42 | 0.000 | 0.048 | 0.024 |
+| poker_player | 40 | 0.175 | 0.150 | 0.100 |
+| orchestra | 40 | 0.225 | 0.125 | 0.100 |
+| employee_hire_evaluation | 38 | 0.105 | 0.105 | 0.105 |
+| course_teach | 30 | 0.033 | 0.100 | 0.067 |
+| singer | 30 | 0.333 | 0.233 | 0.167 |
+| museum_visit | 18 | 0.056 | 0.111 | 0.111 |
+| battle_death | 16 | 0.250 | 0.125 | 0.062 |
+| voter_1 | 15 | 0.133 | 0.200 | 0.200 |
+| real_estate_properties | 4 | 0.000 | 0.250 | 0.000 |
+
+#### 6. Average generated tokens per problem
 
 | Model | easy | medium | hard | extra | all |
 |---|---|---|---|---|---|
@@ -176,11 +228,13 @@ Based on the above tables, it appears the larger reasoning model is not always t
 * **Exact matching (table 2):** DeepSeek is lowest aggregated across all difficulties (0.085 vs 0.099 Qwen, 0.123 OLMo).
 * **Execution accuracy (table 3):** DeepSeek is clearly lowest aggregated across all difficulties (0.121 vs 0.209 Qwen, 0.195 OLMo), and falls to 0.017 (hard) and 0.006 (extra).
 
-**2. Reasoning costs far more tokens for no accuracy gain.** DeepSeek averages 851 generated tokens per problem aggregated across all difficulties (table 4) vs 87 for OLMo (about 10x) and 46 for Qwen (about 18x), and grows with difficulty (611 on easy to 1177 on extra). The non-reasoning models stay between 28 and 111 tokens on average.
+**2. Performance varies widely across databases.** Tables 4 and 5 give execution and exact matching accuracy for each of the 20 unseen databases. Execution accuracy for Qwen3-0.6B ranges from 0.10 (course_teach) to 0.53 (singer), for OLMo-2-1B from 0.05 (pets_1) to 0.37 (singer), and for DeepSeek-R1-Distill-Qwen-1.5B from 0.00 (concert_singer) to 0.27 (singer, voter_1). The best model changes with the database: Qwen3-0.6B is highest on execution accuracy in 13 databases, OLMo-2-1B in 8 and DeepSeek-R1-Distill-Qwen-1.5B in 1 (ties counted for each tied model). For example, OLMo-2-1B is clearly best on car_1 (0.21 vs 0.11 and 0.05) and student_transcripts_tracking (0.24 vs 0.13 and 0.06), while Qwen3-0.6B is best on world_1, tvshow and orchestra. DeepSeek-R1-Distill-Qwen-1.5B has the highest exact matching accuracy on flight_2 (0.20 vs 0.07 and 0.10). Databases with few problems (real_estate_properties n=4, voter_1 n=15, battle_death n=16, museum_visit n=18) are too small to rank models reliably, since one problem changes a score by 6 to 25 percentage points.
 
-**3. Between the two small models, there is no single winner.** OLMo is best on exact match aggregated across all difficulties (0.123) and on easy queries for every metric (e.g. execution 0.452 vs 0.210 Qwen). Qwen is best on execution accuracy aggregated across all difficulties (0.209) and on medium, hard and extra execution (0.276 / 0.126 / 0.114), where OLMo falls to 0.018 on extra. OLMo's exact-match edge is driven by easy problems.
+**3. Reasoning costs far more tokens for no accuracy gain.** DeepSeek averages 851 generated tokens per problem aggregated across all difficulties (table 6) vs 87 for OLMo (about 10x) and 46 for Qwen (about 18x), and grows with difficulty (611 on easy to 1177 on extra). The non-reasoning models stay between 28 and 111 tokens on average.
 
-**4. Performance falls with difficulty for every model**, mostly at hard and extra, where exact match is at most 0.034 and execution at most 0.126.
+**4. Between the two small models, there is no single winner.** OLMo is best on exact match aggregated across all difficulties (0.123) and on easy queries for every metric (e.g. execution 0.452 vs 0.210 Qwen). Qwen is best on execution accuracy aggregated across all difficulties (0.209) and on medium, hard and extra execution (0.276 / 0.126 / 0.114), where OLMo falls to 0.018 on extra. OLMo's exact-match edge is driven by easy problems.
+
+**5. Performance falls with difficulty for every model**, mostly at hard and extra, where exact match is at most 0.034 and execution at most 0.126.
 
 **Interpretation, and what it does not show.** Our working hypothesis is that Text-to-SQL at this scale does not benefit from an explicit reasoning trace, and that a 0.5B-1B non-reasoning model is sufficient. The data are consistent with this, but they do not establish that Text-to-SQL is "too simple" for reasoning models, because several confounds are not controlled:
 
@@ -193,3 +247,7 @@ Based on the above tables, it appears the larger reasoning model is not always t
 # Task 2:
 
 RQ2: How do characteristics of reasoning traces (of reasoning LLM) relate to Text-to-SQL performance?
+
+## Methodology
+
+## Resources
