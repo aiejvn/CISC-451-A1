@@ -256,7 +256,7 @@ RQ2: How do characteristics of reasoning traces (of reasoning LLM) relate to Tex
 
 # Task 3:
 
-RQ3: To what extent does [strategy] improve [model]?
+RQ3: To what extent does adaptation/learning to adapt improve Qwen3-0.6B?
 
 ## Methodology:
 
