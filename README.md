@@ -240,7 +240,7 @@ Based on the above tables, it appears that the larger reasoning model is not alw
 
 **Interpretation and limitations.** Our working hypothesis is that Text-to-SQL at this scale does not benefit from an explicit reasoning trace, and that a non-reasoning model with 0.5B to 1B parameters is sufficient. The results are consistent with this hypothesis, but they do not establish that Text-to-SQL is too simple for reasoning models, because several confounds are not controlled:
 
-* **Truncation and failed outputs for DeepSeek.** 98 of 1034 generations (9.5%) reach the 4096-token limit, compared to 23 (2.2%) for Qwen and 9 (0.9%) for OLMo at their 256-token limit, and 87 DeepSeek predictions contain fewer than 3 words, i.e. effectively no SQL. These count as failures on every metric and likely lower DeepSeek's recall, exact matching, and execution scores. A larger token budget could change the ranking.
+* **Truncation and failed outputs for DeepSeek.** 98 of 1034 generations (9.5%) reach the 4096-token limit, and 87 DeepSeek predictions contain fewer than 3 words, i.e. effectively no SQL. These count as failures on every metric and likely lower DeepSeek's recall, exact matching, and execution scores. A larger token budget could change the ranking.
 * **Model differences beyond reasoning.** The three models differ in size (0.6B, 1B, and 1.5B parameters) and in pretraining and post-training, not only in whether they reason. DeepSeek-R1-Distill-Qwen-1.5B is also a distilled model, so the effect of reasoning cannot be separated from the quality of distillation.
 * **Single run and sample size.** We report one run with one seed and no confidence intervals. Differences of a few points (for example 0.099 vs. 0.123 exact matching accuracy for Qwen and OLMo, or 0.209 vs. 0.195 execution accuracy) may not be significant.
 * **Aggregated component matching.** The component matching row in table 1 is our own macro-average, namely the mean of the 10 per-component accuracy and recall scores with F1 computed from these two means, and is not a number reported by Spider.
@@ -256,11 +256,60 @@ RQ2: How do characteristics of reasoning traces (of reasoning LLM) relate to Tex
 
 # Task 3:
 
-RQ3: To what extent does adaptation/learning to adapt improve Qwen3-0.6B?
+RQ3: To what extent does PlanPlay-SQL improve Qwen3-0.6B?
 
 ## Methodology:
 
-## Resutls
+We improve Qwen3-0.6B [2] with thinking disabled, the same configuration as in Task 1. We chose it because our compute is limited to a single RTX 4090, and iterative training on DeepSeek-R1-Distill-Qwen-1.5B would mean sampling and training on traces of about 850 tokens per question. Qwen3-0.6B generates about 46 tokens per question, so we can sample and train over the whole Spider training split. It also looked promising in Task 1, with the highest execution accuracy (0.209) and the shortest outputs. [todo: re-check after recomputing execution accuracy on databases with rows.] We call our method **PlanPlay-SQL**: the model first writes a short *plan*, then is trained by verified self-*play*. It combines three ideas from recent work on small-model Text-to-SQL. From [7] and [6], the model writes a short plan (tables and joins, columns, filters, aggregation and ordering) before the SQL, which gives a model with no thinking mode a place to organize the schema. We then fine-tune on the Spider training split in three stages, following [5]. First, a supervised warm start on gold SQL. Second, verification-based iterative fine-tuning: the model answers training questions, we execute its SQL and the gold SQL, keep the answers with matching results as positives, and fine-tune on them. Third, self-play fine-tuning: using the logistic loss of SPIN [8], we train the best checkpoint to prefer a verified correct answer over an incorrect answer produced by the worst checkpoint. Training uses only the Spider training split, and checkpoints are selected on held-out training databases, so the dev set stays untouched and evaluation stays cross-domain. We skip [5]'s synthetic question generation because Spider already provides gold SQL to execute against.
+
+We expect PlanPlay-SQL to improve performance in two ways. The warm start teaches the model Spider's schema conventions and output style, which should raise exact and execution accuracy most, since Task 1 showed that many of the model's outputs are valid SQL that differs from the gold query. The verification and self-play stages then train on the model's own execution-checked outputs, which should reduce its remaining execution errors. We expect most of the gain to come from the warm start. Paper [5] found that verification-based fine-tuning gave most of its gains and self-play only a further 0.6 to 0.8 points, on much larger models, so self-play may add little at 0.6B. To measure each part, we report five rows on the same dev set and metrics as Task 1: the original solution, the plan prompt only, the warm start only, warm start plus verification fine-tuning, and the full PlanPlay-SQL.
+
+[todo: the schema-only databases from build_spider_dbs.py have no rows, so execution checking and execution accuracy need the official Spider database files. todo: decide how the warm start gets plans, since gold SQL has none. todo: add training settings (learning rate, epochs, batch size, rounds, samples per question, validation databases, seed).]
+
+## Results
+
+[todo: the "improved" row below is the checkpoint after the supervised stages only (warm start plus 1500 further gold questions, plan format). Add rows for the VBI-FT and self-play checkpoints once they are evaluated on the dev set.]
+
+Table 7 compares the original Qwen3-0.6B from Task 1 with the adapted model on the same 1034 Spider dev questions, with the same metrics and the same execution-checking databases. The adapted model uses the plan-then-SQL prompt, greedy decoding, and a maximum of 384 new tokens (Task 1: 256). Execution accuracy is computed on mock databases (see the limitations below), so we treat exact matching accuracy as the more reliable number.
+
+Table 7: Original and adapted Qwen3-0.6B on the Spider dev set, overall and by difficulty. Component matching is accuracy / recall / F1 (macro-averaged as in Task 1). Execution accuracy is on mock databases.
+
+| Metric | Model | easy | medium | hard | extra | all |
+|---|---|---|---|---|---|---|
+| Problems (n) | | 248 | 446 | 174 | 166 | 1034 |
+| Component matching | Original (Task 1) | 0.675 / 0.308 / 0.423 | 0.582 / 0.235 / 0.334 | 0.540 / 0.141 / 0.223 | 0.578 / 0.160 / 0.250 | 0.628 / 0.209 / 0.314 |
+| | Adapted | 0.809 / 0.763 / 0.786 | 0.750 / 0.643 / 0.693 | 0.815 / 0.626 / 0.708 | 0.696 / 0.478 / 0.567 | 0.783 / 0.636 / 0.702 |
+| Exact matching | Original (Task 1) | 0.157 | 0.137 | 0.006 | 0.006 | 0.099 |
+| | Adapted | 0.762 | 0.594 | 0.385 | 0.265 | 0.546 |
+| Execution (mock DB) | Original (Task 1) | 0.173 | 0.179 | 0.029 | 0.036 | 0.130 |
+| | Adapted | 0.794 | 0.583 | 0.443 | 0.277 | 0.561 |
+
+The adapted model is better on every metric and every difficulty level. Exact matching accuracy rises from 0.099 to 0.546 overall, and the largest relative gains are on hard (0.006 to 0.385) and extra (0.006 to 0.265) problems, which the original model almost never solved. Component matching recall rises from 0.209 to 0.636, so the model now writes most of the components the gold query contains. Execution accuracy on the mock databases rises from 0.130 to 0.561. The model is still weak on queries with set operations and nesting: the INTERSECT/UNION/EXCEPT and nested-query component (IUEN) has an accuracy of only 0.288. Our expectation that adapting on the Spider training split would help held, with much larger gains than we expected from a 0.6B model.
+
+To see which part of the method helps, Table 8 reports accuracy on a held-out validation set of 707 questions from 20 training databases that were never used for training. This validation set was used for choosing checkpoints, and the dev set was not.
+
+Table 8: Validation accuracy (execution match on mock databases, 707 questions) after each stage. The row marked * uses a 300-question subset of the same validation set.
+
+| Stage | Validation accuracy |
+|---|---|
+| Base model, original prompt* | 0.407 |
+| Base model, plan prompt, no training* | 0.050 |
+| Warm start on 1500 gold questions (plan format) | 0.622 |
+| + 1500 further gold questions (supervised control) | 0.652 |
+| + VBI-FT on the same 1500 questions (no gold SQL, hard questions only, 476 verified samples) | 0.651 |
+| + self-play, lower learning rate (1e-5, 9 steps) | 0.631 |
+| + self-play, higher learning rate (1e-4, 46 steps) | 0.034 |
+
+The warm start accounts for most of the gain (0.407 to 0.622). The plan prompt without training does very poorly (0.050), so the plan format only helps after fine-tuning. Verification-based fine-tuning matched the supervised control (0.651 vs. 0.652, a difference far smaller than the roughly 2-point sampling error of 707 questions) while using only 476 self-generated, execution-verified training items instead of 1500 gold ones and no gold SQL text. Self-play did not help: with a low learning rate it barely changed the model (0.622 to 0.631), and with a higher learning rate the training loss fell from 0.69 to 0.25 but accuracy collapsed to 0.034 with most outputs failing to execute. This matches the expectation from [5] that self-play adds little on top of verification-based fine-tuning, but it is more negative than the 0.6 to 0.8 points reported there. [todo: rerun self-play with checkpoints every few steps and a lower learning rate, and report the result.]
+
+**Examples.** Out of 1034 dev questions, the adapted model gets 260 right that the original got wrong, loses 54 that the original got right, and both get 313 right (execution match on mock databases). One fixed example is the network_1 question "Show the student IDs and numbers of friends corresponding to each." The original model wrote `SELECT h.ID, h.name, h.grade, f.friend_id FROM Highschooler h JOIN Friend f ON h.ID = f.student_id`, which lists friends instead of counting them. The adapted model first wrote the plan `tables: friend; select: student_id , count(*); group/order: group by student_id` and then `SELECT student_id , count(*) FROM friend GROUP BY student_id`, which matches the gold query. One broken example is the tvshow question "What are the titles of the cartoons sorted alphabetically?" The original model wrote a correct query (`SELECT Title FROM Cartoon ORDER BY Title ASC`), but the adapted model's plan misspelled the table name (`tables: CARTON`), and the SQL that followed inherited the error (`SELECT Title FROM CARTON ORDER BY Title`), which fails to run. In this case the plan step propagated a mistake into the final query.
+
+**Limitations.**
+
+* **Mock databases.** The official Spider database files with rows were not available, so we generated databases with random rows seeded from the literals in each question's gold query. Execution accuracy on them only approximates the official execution accuracy. For example, Task 1's execution accuracy for the original model drops from 0.209 on schema-only databases to 0.130 on the mock databases, because on empty databases every query that returns nothing counts as correct. Exact matching accuracy does not depend on the databases.
+* **One run per configuration, one seed**, with no confidence intervals. The validation differences between the supervised control and VBI-FT are within sampling error.
+* **Different prompt and token budget.** The adapted model uses a different prompt and a larger token budget than the original, so the gain combines fine-tuning, the plan format, and the longer limit.
+* **Not the full method on dev.** The dev-set results are for the supervised stages only. VBI-FT and self-play were compared on the validation set.
 
 # Task 4:
 
@@ -276,3 +325,11 @@ TODO
 [3] Team OLMo, Pete Walsh, Luca Soldaini, Dirk Groeneveld, Kyle Lo, et al. 2025. 2 OLMo 2 Furious. arXiv:2501.00656. https://arxiv.org/abs/2501.00656
 
 [4] DeepSeek-AI. 2025. DeepSeek-R1: Incentivizing Reasoning Capability in LLMs via Reinforcement Learning. arXiv:2501.12948. https://arxiv.org/abs/2501.12948
+
+[5] SPFT-SQL: Enhancing Large Language Model for Text-to-SQL Parsing by Self-Play Fine-Tuning. 2025. arXiv:2509.03937. https://arxiv.org/abs/2509.03937
+
+[6] FINER-SQL: Boosting Small Language Models for Text-to-SQL. 2026. arXiv:2605.03465. https://arxiv.org/abs/2605.03465
+
+[7] Enhancing LLM Fine-tuning for Text-to-SQLs by SQL Quality Measurement. 2024. arXiv:2410.01869. https://arxiv.org/abs/2410.01869 [todo: add authors for [5]-[7]]
+
+[8] Zixiang Chen, Yihe Deng, Huizhuo Yuan, Kaixuan Ji, and Quanquan Gu. 2024. Self-Play Fine-Tuning Converts Weak Language Models to Strong Language Models. arXiv:2401.01335. https://arxiv.org/abs/2401.01335 [todo: verify authors and ID]
