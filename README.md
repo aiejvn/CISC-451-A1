@@ -3,20 +3,20 @@ Run `python build_spider_dbs.py` before proceeding.
 # Task 1:
 
 * Decoder-only LLMs
-    Qwen3-8b
-    GPT-OSS-20b
+    Qwen3-0.6B
+    OLMo-2-0425-1B-Instruct
 
 * Reasoning LLMs
-    DeepSeek-R1-Distill-Qwen-7B	
+    DeepSeek-R1-Distill-Qwen-1.5B
 
 RQ1: How do (selected) LLms perform on cross-domain Text-to-SQL?
 
 ## Methodology:
 
-In this report we evaluate the performance of decoder-only language models as well as reasoning LLMs on cross-domain SQL. Specifically, we evaluate the performance of decoder-only LLMs Qwen3-8B [needs citation] (non-MoE) and GPT-OSS-20B [needs citation] (3.6B active params MoE), as well as reasoning LLM Deepseek-R1-Distill-Qwen-14B (non-MoE) by downloading the NF4 quantized checkpoints from Huggingface and running the models locally on 1x NVIDIA GeForce RTX 4090 GPU. To maximize GPU utilization, we evaluate using batch sizes of 64.
+In this report we evaluate the performance of decoder-only language models as well as reasoning LLMs on cross-domain SQL. Specifically, we evaluate the performance of the decoder-only LLMs Qwen3-0.6B [2] (with thinking mode disabled) and OLMo-2-0425-1B-Instruct [3], as well as the reasoning LLM DeepSeek-R1-Distill-Qwen-1.5B [4], all of which are dense (non-MoE) models, by loading the bf16 checkpoints from Huggingface and running the models locally on 1x NVIDIA GeForce RTX 4090 GPU. To maximize GPU utilization, we evaluate using batch sizes of 128.
 
 [we get below data using slurm]
-We use all 1034 samples provided in the evaluation data under the Spider dataset [citation needed]. Given an example, we prompt the LLM:
+We use all 1034 samples provided in the evaluation data under the Spider dataset [1]. Given an example, we prompt the LLM:
 ```
 Given the following SQLite database schema, write a SQL query that answers
 the question.
@@ -101,7 +101,9 @@ For each sample, we decode the model's generated tokens into text using the mode
 
 During decode, each model is run with greedy decoding so that we can get consistent results between runs. Models may generate up to 4096 tokens in the response, including reasoning traces. 
 
-We evaluate the output using the same metrics as the Spider paper [citation needed]. These are:
+To evaluate cross-domain performance, we additionally report results separately for each of the 20 databases in the Spider dev set: world_1 (120 problems), car_1 (92), cre_Doc_Template_Mgt (84), dog_kennels (82), flight_2 (80), student_transcripts_tracking (78), wta_1 (62), tvshow (62), network_1 (56), concert_singer (45), pets_1 (42), poker_player (40), orchestra (40), employee_hire_evaluation (38), course_teach (30), singer (30), museum_visit (18), battle_death (16), voter_1 (15), and real_estate_properties (4).
+
+We evaluate the output using the same metrics as the Spider paper [1]. These are:
 
 1. Component Matching
     * For each of the following components:
@@ -126,7 +128,7 @@ If output is invalid or unparsable, then it may fail all 3 dimensions (component
 We also consider the SQL Hardness Criteria, where queries are assigned difficulties based on the number of SQL components, selections, and conditions, so that queries that contain more SQL keywords are considered harder.
 
 ![alt text](image.png)
-Figure [n]: SQL query examples in 4 hardness levels. Credit: Spider [citation needed]
+Figure [n]: SQL query examples in 4 hardness levels. Credit: Spider [1]
 
 [todo: update with exact IDs used]
 
@@ -134,7 +136,7 @@ Figure [n]: SQL query examples in 4 hardness levels. Credit: Spider [citation ne
 
 Below we report how Qwen3-0.6B, OLMo-2, and Deepseek-R1-Distill-Qwen3-1.5B perform on the Spider benchmark across all 3 metrics (Component Matching, Exact Matching Accuracy, Execution Accuracy). We calculate the values per problem difficulty as well as overall, and display them in the below tables.
 
-All models are evaluated zero-shot with the same prompt on the 20 Spider dev databases. Aggregated across all difficulties and databases, performance is low for every model: execution accuracy is 0.121 to 0.209 and exact matching accuracy is 0.085 to 0.123. Execution accuracy exceeds exact matching accuracy for every model (for example 0.209 vs 0.099 for Qwen3-0.6B), so at least part of the executed-correct output is written differently from the gold SQL. No model is best everywhere: the ranking depends on the metric, the database and the problem difficulty.
+All models are evaluated zero-shot with the same prompt on the 20 databases of the Spider dev set. Aggregated across all difficulties and databases, we find that every model performs poorly, with execution accuracy between 0.121 and 0.209 and exact matching accuracy between 0.085 and 0.123. Execution accuracy is higher than exact matching accuracy for all three models (for example 0.209 vs. 0.099 for Qwen3-0.6B), which suggests that at least some of the queries that return the correct result are written differently from the gold SQL. No single model is best across metrics, databases, and difficulty levels.
 
 #### 1. Component matching (accuracy / recall / F1)
 
@@ -222,26 +224,26 @@ All models are evaluated zero-shot with the same prompt on the 20 Spider dev dat
 | DeepSeek-R1-Distill-Qwen-1.5B | 610.8 | 768.4 | 1096.0 | 1176.9 | 851.3 |
 
 
-Based on the above tables, it appears the larger reasoning model is not always the best model. DeepSeek-R1-Distill-Qwen-1.5B (reasoning, 1.5B) does not beat the smaller non-reasoning models Qwen3-0.6B (thinking off) and OLMo-2-1B-Instruct on most metrics:
+Based on the above tables, it appears that the larger reasoning model is not always the best model. DeepSeek-R1-Distill-Qwen-1.5B (reasoning, 1.5B) does not outperform the smaller non-reasoning models Qwen3-0.6B (thinking off) and OLMo-2-1B-Instruct on most metrics:
 
-* ⭐ **Component matching (table 1):** aggregated across all difficulties, DeepSeek has the lowest recall (0.174 vs 0.209 / 0.211) and F1 (0.275 vs 0.314 / 0.317). It does have the highest accuracy* aggregated across all difficulties (0.661 vs 0.628 / 0.640), and the best accuracy on medium (0.642). So the claim holds for recall and F1, not for accuracy. Since accuracy only scores components the model actually wrote, this is consistent with DeepSeek often producing no usable SQL (see below): when it writes a component it is often right, but it frequently writes none. OLMo is best on easy (0.813 / 0.378 / 0.516) and has the best F1 aggregated across all difficulties.
-* **Exact matching (table 2):** DeepSeek is lowest aggregated across all difficulties (0.085 vs 0.099 Qwen, 0.123 OLMo).
-* **Execution accuracy (table 3):** DeepSeek is clearly lowest aggregated across all difficulties (0.121 vs 0.209 Qwen, 0.195 OLMo), and falls to 0.017 (hard) and 0.006 (extra).
+* ⭐ **Component matching (table 1):** aggregated across all difficulties, DeepSeek has the lowest recall (0.174 vs. 0.209 and 0.211) and F1 (0.275 vs. 0.314 and 0.317), but the highest accuracy (0.661 vs. 0.628 and 0.640), and the highest accuracy on medium problems (0.642). The observation that the larger reasoning model is not best therefore holds for recall and F1 but not for accuracy. Since accuracy only scores components that the model actually wrote, this is consistent with DeepSeek often producing no usable SQL (see below): when it writes a component it is often correct, but it frequently writes none. OLMo has the best F1 aggregated across all difficulties, and performs best on easy problems (0.813 / 0.378 / 0.516).
+* **Exact matching (table 2):** aggregated across all difficulties, DeepSeek is lowest (0.085 vs. 0.099 for Qwen and 0.123 for OLMo).
+* **Execution accuracy (table 3):** aggregated across all difficulties, DeepSeek is clearly lowest (0.121 vs. 0.209 for Qwen and 0.195 for OLMo), and its accuracy falls to 0.017 on hard and 0.006 on extra problems.
 
-**2. Performance varies widely across databases.** Tables 4 and 5 give execution and exact matching accuracy for each of the 20 unseen databases. Execution accuracy for Qwen3-0.6B ranges from 0.10 (course_teach) to 0.53 (singer), for OLMo-2-1B from 0.05 (pets_1) to 0.37 (singer), and for DeepSeek-R1-Distill-Qwen-1.5B from 0.00 (concert_singer) to 0.27 (singer, voter_1). The best model changes with the database: Qwen3-0.6B is highest on execution accuracy in 13 databases, OLMo-2-1B in 8 and DeepSeek-R1-Distill-Qwen-1.5B in 1 (ties counted for each tied model). For example, OLMo-2-1B is clearly best on car_1 (0.21 vs 0.11 and 0.05) and student_transcripts_tracking (0.24 vs 0.13 and 0.06), while Qwen3-0.6B is best on world_1, tvshow and orchestra. DeepSeek-R1-Distill-Qwen-1.5B has the highest exact matching accuracy on flight_2 (0.20 vs 0.07 and 0.10). Databases with few problems (real_estate_properties n=4, voter_1 n=15, battle_death n=16, museum_visit n=18) are too small to rank models reliably, since one problem changes a score by 6 to 25 percentage points.
+**2. Performance varies across databases.** Tables 4 and 5 report execution and exact matching accuracy on each of the 20 databases, all of which are unseen by the models. Execution accuracy ranges from 0.10 (course_teach) to 0.53 (singer) for Qwen3-0.6B, from 0.05 (pets_1) to 0.37 (singer) for OLMo-2-1B, and from 0.00 (concert_singer) to 0.27 (singer and voter_1) for DeepSeek-R1-Distill-Qwen-1.5B. The best model also differs by database: Qwen3-0.6B has the highest execution accuracy on 13 databases, OLMo-2-1B on 8, and DeepSeek-R1-Distill-Qwen-1.5B on 1 (ties are counted for each tied model). For example, OLMo-2-1B performs best on car_1 (0.21 vs. 0.11 and 0.05) and student_transcripts_tracking (0.24 vs. 0.13 and 0.06), while Qwen3-0.6B performs best on world_1, tvshow, and orchestra. DeepSeek-R1-Distill-Qwen-1.5B has the highest exact matching accuracy on flight_2 (0.20 vs. 0.07 and 0.10). Databases with few problems (real_estate_properties with n=4, voter_1 with n=15, battle_death with n=16, and museum_visit with n=18) are too small to rank the models reliably, since a single problem changes a score by 6 to 25 percentage points.
 
-**3. Reasoning costs far more tokens for no accuracy gain.** DeepSeek averages 851 generated tokens per problem aggregated across all difficulties (table 6) vs 87 for OLMo (about 10x) and 46 for Qwen (about 18x), and grows with difficulty (611 on easy to 1177 on extra). The non-reasoning models stay between 28 and 111 tokens on average.
+**3. Reasoning requires many more tokens without improving accuracy.** Aggregated across all difficulties, DeepSeek generates 851 tokens per problem on average (table 6), compared to 87 for OLMo (about 10x) and 46 for Qwen (about 18x). The number of tokens it generates also increases with difficulty, from 611 on easy problems to 1177 on extra problems, whereas the non-reasoning models stay between 28 and 111 tokens on average.
 
-**4. Between the two small models, there is no single winner.** OLMo is best on exact match aggregated across all difficulties (0.123) and on easy queries for every metric (e.g. execution 0.452 vs 0.210 Qwen). Qwen is best on execution accuracy aggregated across all difficulties (0.209) and on medium, hard and extra execution (0.276 / 0.126 / 0.114), where OLMo falls to 0.018 on extra. OLMo's exact-match edge is driven by easy problems.
+**4. There is no clear winner between the two smaller models.** OLMo has the best exact matching accuracy aggregated across all difficulties (0.123) and performs best on easy problems for every metric (for example 0.452 vs. 0.210 execution accuracy for Qwen). Qwen has the best execution accuracy aggregated across all difficulties (0.209) and on medium, hard, and extra problems (0.276, 0.126, and 0.114), where OLMo drops to 0.018 on extra problems. The exact matching advantage of OLMo is driven by easy problems.
 
-**5. Performance falls with difficulty for every model**, mostly at hard and extra, where exact match is at most 0.034 and execution at most 0.126.
+**5. Performance decreases with difficulty for every model.** The decrease is largest on hard and extra problems, where exact matching accuracy is at most 0.034 and execution accuracy is at most 0.126.
 
-**Interpretation, and what it does not show.** Our working hypothesis is that Text-to-SQL at this scale does not benefit from an explicit reasoning trace, and that a 0.5B-1B non-reasoning model is sufficient. The data are consistent with this, but they do not establish that Text-to-SQL is "too simple" for reasoning models, because several confounds are not controlled:
+**Interpretation and limitations.** Our working hypothesis is that Text-to-SQL at this scale does not benefit from an explicit reasoning trace, and that a non-reasoning model with 0.5B to 1B parameters is sufficient. The results are consistent with this hypothesis, but they do not establish that Text-to-SQL is too simple for reasoning models, because several confounds are not controlled:
 
-* **Truncation and failed outputs for DeepSeek.** 98 of 1034 generations (9.5%) hit the 4096-token cap (vs 23 / 2.2% for Qwen and 9 / 0.9% for OLMo at their 256-token cap), and 87 DeepSeek predictions are fewer than 3 words, i.e. effectively no SQL. These count as failures on every metric and probably depress DeepSeek's recall, exact and execution scores. A larger token budget could change the ranking.
-* **Model differences beyond reasoning.** The three models differ in size (0.6B / 1B / 1.5B), pretraining and post-training recipe, not only in reasoning. DeepSeek-R1-Distill-Qwen-1.5B is a distilled model, so "reasoning" and "distillation quality" are confounded.
-* **Single run and sample size.** One seed, one run, no confidence intervals. Gaps of a few points (for example Qwen 0.099 vs OLMo 0.123 exact match, or Qwen 0.209 vs OLMo 0.195 execution) may not be significant.
-* **Aggregated component matching.** The component row is our own macro-average (the mean of the 10 per-component accuracy and recall scores, with F1 computed from those two means), not a number Spider reports itself.
+* **Truncation and failed outputs for DeepSeek.** 98 of 1034 generations (9.5%) reach the 4096-token limit, compared to 23 (2.2%) for Qwen and 9 (0.9%) for OLMo at their 256-token limit, and 87 DeepSeek predictions contain fewer than 3 words, i.e. effectively no SQL. These count as failures on every metric and likely lower DeepSeek's recall, exact matching, and execution scores. A larger token budget could change the ranking.
+* **Model differences beyond reasoning.** The three models differ in size (0.6B, 1B, and 1.5B parameters) and in pretraining and post-training, not only in whether they reason. DeepSeek-R1-Distill-Qwen-1.5B is also a distilled model, so the effect of reasoning cannot be separated from the quality of distillation.
+* **Single run and sample size.** We report one run with one seed and no confidence intervals. Differences of a few points (for example 0.099 vs. 0.123 exact matching accuracy for Qwen and OLMo, or 0.209 vs. 0.195 execution accuracy) may not be significant.
+* **Aggregated component matching.** The component matching row in table 1 is our own macro-average, namely the mean of the 10 per-component accuracy and recall scores with F1 computed from these two means, and is not a number reported by Spider.
 
 
 # Task 2:
@@ -250,4 +252,27 @@ RQ2: How do characteristics of reasoning traces (of reasoning LLM) relate to Tex
 
 ## Methodology
 
-## Resources
+## Results
+
+# Task 3:
+
+RQ3: To what extent does [strategy] improve [model]?
+
+## Methodology:
+
+## Resutls
+
+# Task 4:
+
+TODO
+
+
+## References
+
+[1] Tao Yu, Rui Zhang, Kai Yang, Michihiro Yasunaga, Dongxu Wang, Zifan Li, James Ma, Irene Li, Qingning Yao, Shanelle Roman, Zilin Zhang, and Dragomir Radev. 2018. Spider: A Large-Scale Human-Labeled Dataset for Complex and Cross-Domain Semantic Parsing and Text-to-SQL Task. In Proceedings of the 2018 Conference on Empirical Methods in Natural Language Processing (EMNLP), pages 3911-3921, Brussels, Belgium. https://aclanthology.org/D18-1425/ (arXiv:1809.08887)
+
+[2] Qwen Team. 2025. Qwen3 Technical Report. arXiv:2505.09388. https://arxiv.org/abs/2505.09388
+
+[3] Team OLMo, Pete Walsh, Luca Soldaini, Dirk Groeneveld, Kyle Lo, et al. 2025. 2 OLMo 2 Furious. arXiv:2501.00656. https://arxiv.org/abs/2501.00656
+
+[4] DeepSeek-AI. 2025. DeepSeek-R1: Incentivizing Reasoning Capability in LLMs via Reinforcement Learning. arXiv:2501.12948. https://arxiv.org/abs/2501.12948
