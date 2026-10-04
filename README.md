@@ -307,6 +307,29 @@ We relate both Token Count and Information Retention to correctness and difficul
 
 ## Results
 
+We compute Token Count and Information Retention for all 1034 generations in DeepSeek-R1-Distill-Qwen-1.5B's main Task 1 run, and correlate each against difficulty and against all 32 per-question performance submetrics as described above. Figure 2 shows the resulting distributions; table 8 lists the strongest correlations.
+
+1. **Token Count increases with difficulty, as hypothesized, but the increase is driven by a heavy tail.** Median token count rises from 329 (easy) to 374 (medium) to 425 (hard) to 434 (extra), and the correlation with difficulty is positive and significant (ρ=0.313, q<0.001). The mean rises faster than the median at every level (for example 542 vs. 329 on easy), because generations hitting the 4096-token limit occur at every difficulty (figure 2, top row); these are the same repetition loops Task 1 identified, not productive extra reasoning on harder problems.
+2. **On easy and medium problems, more Token Count tracks worse performance, the "disobeying" case flagged in the Methodology.** Token Count correlates negatively with `keywords` F1 on easy (ρ=-0.42, q<0.001) and medium (ρ=-0.19, q=0.001) problems, and with `where` and `where(no OP)` F1 on easy problems (ρ=-0.32 and -0.33, q<0.001). Combined with finding 1, the extra tokens on these problems look like run-away generation rather than helpful deliberation.
+3. **Information Retention decreases slightly with difficulty.** Median retention is 1.0 at every difficulty level, but the mean falls from 0.915 (easy) to 0.861 (extra), and the correlation with difficulty is negative and significant (ρ=-0.107, q=0.013). Per the Methodology, this is the case that calls for examining the model's introduced assumptions on harder problems rather than attributing the accuracy drop to difficulty alone.
+4. **Where Information Retention does relate to performance, it is positive, as hypothesized.** On medium problems, Information Retention correlates positively with `where` and `where(no OP)` F1 (ρ=0.345, q<0.001 for both), consistent with higher-retention traces producing more accurate WHERE clauses. Of the 169 tests run, 26 remain significant after Benjamini-Hochberg correction; the strongest are in table 8.
+
+Table 8: Strongest Spearman correlations between reasoning metrics and performance submetrics, Benjamini-Hochberg corrected, top 8 of 169 tests by q-value. Full results in `eval/results/task2_analysis/spearman_correlations.csv`.
+
+| Metric | Submetric | Difficulty | n | ρ | q |
+|---|---|---|---|---|---|
+| Token Count | difficulty (overall) | all | 1034 | 0.313 | <0.001 |
+| Information Retention | where F1 | medium | 441 | 0.345 | <0.001 |
+| Information Retention | where(no OP) F1 | medium | 441 | 0.345 | <0.001 |
+| Token Count | keywords F1 | easy | 248 | -0.417 | <0.001 |
+| Token Count | where(no OP) F1 | easy | 248 | -0.332 | <0.001 |
+| Token Count | where F1 | easy | 248 | -0.322 | <0.001 |
+| Token Count | keywords F1 | medium | 446 | -0.194 | <0.001 |
+| Information Retention | difficulty (overall) | all | 1017 | -0.107 | 0.013 |
+
+![Token Count and Information Retention by difficulty and by exact-match correctness](eval/results/task2_analysis/boxplots.png)
+Figure 2: Token Count and Information Retention, by difficulty and by exact-match correctness, for DeepSeek-R1-Distill-Qwen-1.5B's 1034 Task 1 generations. Green triangles are means, orange lines are medians. Means sit well above medians throughout, confirming the right-skewed, bounded distributions the Methodology assumes rather than normal ones.
+
 # Task 3:
 
 RQ3: To what extent does PlanPlay-SQL improve Qwen3-0.6B?

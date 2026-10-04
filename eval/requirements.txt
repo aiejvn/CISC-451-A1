@@ -10,3 +10,7 @@ safetensors
 # spider/process_sql.py imports nltk and needs the punkt_tab tokenizer data:
 #   python -c "import nltk; nltk.download('punkt_tab')"
 nltk
+# reasoning_metrics.py (Task 2 analysis)
+scipy
+pandas
+matplotlib
