@@ -1,0 +1,3 @@
+SELECT airlines.Airline FROM airlines JOIN flights ON airlines.Airline = flights.Airline WHERE flights.SourceAirport = 'CVO' AND flights.DestAirport = 'APG'
+SELECT d.injured, d.killed FROM death d WHERE ship.tonnage = 't'
+SELECT country.Name, countrylanguage.Language FROM country JOIN countrylanguage ON country.CountryCode = countrylanguage.CountryCode WHERE countrylanguage.IsOfficial = '1' OR countrylanguage.IsOfficial = '1'

@@ -1,0 +1,3 @@
+SELECT a.Airline FROM airlines a WHERE (SELECT COUNT(*) FROM flights f WHERE f.Airline = a.Airline AND f.SourceAirport = 'CVO' OR f.SourceAirport = 'APG') > 0 AND (SELECT COUNT(*) FROM flights f WHERE f.Airline = a.Airline AND f.SourceAirport = 'APG') = 0
+SELECT
+SELECT Name FROM country WHERE (SELECT Language FROM countrylanguage WHERE CountryCode = (SELECT Code FROM country WHERE Name = Name) AND Language = 'English' OR Language = 'Dutch') = 'English' OR Language = 'Dutch'

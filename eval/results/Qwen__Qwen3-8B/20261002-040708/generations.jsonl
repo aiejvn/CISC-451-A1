@@ -1,0 +1,1 @@
+{"db_id": "concert_singer", "question": "How many singers do we have?", "gold": "SELECT count(*) FROM singer", "raw": "```sql\nSELECT COUNT(*) FROM singer;\n```", "thinking": null, "pred": "SELECT COUNT(*) FROM singer", "new_tokens": 11, "batch_latency_s": 90.2}

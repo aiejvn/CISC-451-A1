@@ -1,0 +1,13 @@
+generation:
+  do_sample: false
+model:
+  author: Qwen
+  batch_size: 64
+  family: qwen3
+  max_new_tokens: 2048
+  name: Qwen3-8B
+  quantization: nf4
+  repo_id: Qwen/Qwen3-8B
+  thinking: false
+n_examples: 1034
+seed: 0

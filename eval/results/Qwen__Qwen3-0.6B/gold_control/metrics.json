@@ -1,0 +1,246 @@
+{
+  "count": {
+    "count": {
+      "easy": 248.0,
+      "medium": 446.0,
+      "hard": 174.0,
+      "extra": 166.0,
+      "all": 1034.0
+    }
+  },
+  "execution accuracy": {
+    "execution": {
+      "easy": 0.794,
+      "medium": 0.583,
+      "hard": 0.443,
+      "extra": 0.277,
+      "all": 0.561
+    }
+  },
+  "exact matching accuracy": {
+    "exact match": {
+      "easy": 0.762,
+      "medium": 0.594,
+      "hard": 0.385,
+      "extra": 0.265,
+      "all": 0.546
+    }
+  },
+  "partial matching accuracy": {
+    "select": {
+      "easy": 0.956,
+      "medium": 0.855,
+      "hard": 0.975,
+      "extra": 0.792,
+      "all": 0.892
+    },
+    "select(no AGG)": {
+      "easy": 0.973,
+      "medium": 0.866,
+      "hard": 0.975,
+      "extra": 0.792,
+      "all": 0.901
+    },
+    "where": {
+      "easy": 0.875,
+      "medium": 0.833,
+      "hard": 0.694,
+      "extra": 0.569,
+      "all": 0.784
+    },
+    "where(no OP)": {
+      "easy": 0.896,
+      "medium": 0.833,
+      "hard": 0.726,
+      "extra": 0.667,
+      "all": 0.808
+    },
+    "group(no Having)": {
+      "easy": 0.85,
+      "medium": 0.741,
+      "hard": 0.857,
+      "extra": 0.696,
+      "all": 0.758
+    },
+    "group": {
+      "easy": 0.75,
+      "medium": 0.672,
+      "hard": 0.857,
+      "extra": 0.625,
+      "all": 0.696
+    },
+    "order": {
+      "easy": 0.864,
+      "medium": 0.833,
+      "hard": 0.9,
+      "extra": 0.875,
+      "all": 0.866
+    },
+    "and/or": {
+      "easy": 1.0,
+      "medium": 0.966,
+      "hard": 0.959,
+      "extra": 0.905,
+      "all": 0.964
+    },
+    "IUEN": {
+      "easy": 0.0,
+      "medium": 0.0,
+      "hard": 0.4,
+      "extra": 0.231,
+      "all": 0.288
+    },
+    "keywords": {
+      "easy": 0.928,
+      "medium": 0.906,
+      "hard": 0.803,
+      "extra": 0.811,
+      "all": 0.878
+    }
+  },
+  "partial matching recall": {
+    "select": {
+      "easy": 0.867,
+      "medium": 0.713,
+      "hard": 0.661,
+      "extra": 0.506,
+      "all": 0.708
+    },
+    "select(no AGG)": {
+      "easy": 0.883,
+      "medium": 0.722,
+      "hard": 0.661,
+      "extra": 0.506,
+      "all": 0.716
+    },
+    "where": {
+      "easy": 0.778,
+      "medium": 0.714,
+      "hard": 0.457,
+      "extra": 0.309,
+      "all": 0.598
+    },
+    "where(no OP)": {
+      "easy": 0.796,
+      "medium": 0.714,
+      "hard": 0.479,
+      "extra": 0.362,
+      "all": 0.617
+    },
+    "group(no Having)": {
+      "easy": 0.85,
+      "medium": 0.647,
+      "hard": 0.769,
+      "extra": 0.494,
+      "all": 0.635
+    },
+    "group": {
+      "easy": 0.75,
+      "medium": 0.586,
+      "hard": 0.769,
+      "extra": 0.443,
+      "all": 0.583
+    },
+    "order": {
+      "easy": 0.864,
+      "medium": 0.6,
+      "hard": 0.655,
+      "extra": 0.62,
+      "all": 0.645
+    },
+    "and/or": {
+      "easy": 0.992,
+      "medium": 0.998,
+      "hard": 0.982,
+      "extra": 0.935,
+      "all": 0.984
+    },
+    "IUEN": {
+      "easy": 0.0,
+      "medium": 0.0,
+      "hard": 0.286,
+      "extra": 0.088,
+      "all": 0.197
+    },
+    "keywords": {
+      "easy": 0.853,
+      "medium": 0.741,
+      "hard": 0.54,
+      "extra": 0.518,
+      "all": 0.677
+    }
+  },
+  "partial matching f1": {
+    "select": {
+      "easy": 0.909,
+      "medium": 0.778,
+      "hard": 0.788,
+      "extra": 0.618,
+      "all": 0.789
+    },
+    "select(no AGG)": {
+      "easy": 0.926,
+      "medium": 0.787,
+      "hard": 0.788,
+      "extra": 0.618,
+      "all": 0.798
+    },
+    "where": {
+      "easy": 0.824,
+      "medium": 0.769,
+      "hard": 0.551,
+      "extra": 0.4,
+      "all": 0.679
+    },
+    "where(no OP)": {
+      "easy": 0.843,
+      "medium": 0.769,
+      "hard": 0.577,
+      "extra": 0.469,
+      "all": 0.7
+    },
+    "group(no Having)": {
+      "easy": 0.85,
+      "medium": 0.691,
+      "hard": 0.811,
+      "extra": 0.578,
+      "all": 0.691
+    },
+    "group": {
+      "easy": 0.75,
+      "medium": 0.627,
+      "hard": 0.811,
+      "extra": 0.519,
+      "all": 0.635
+    },
+    "order": {
+      "easy": 0.864,
+      "medium": 0.698,
+      "hard": 0.758,
+      "extra": 0.726,
+      "all": 0.739
+    },
+    "and/or": {
+      "easy": 0.996,
+      "medium": 0.982,
+      "hard": 0.97,
+      "extra": 0.92,
+      "all": 0.974
+    },
+    "IUEN": {
+      "easy": 1.0,
+      "medium": 1.0,
+      "hard": 0.333,
+      "extra": 0.128,
+      "all": 0.234
+    },
+    "keywords": {
+      "easy": 0.889,
+      "medium": 0.815,
+      "hard": 0.646,
+      "extra": 0.632,
+      "all": 0.765
+    }
+  },
+  "etype": "all"
+}

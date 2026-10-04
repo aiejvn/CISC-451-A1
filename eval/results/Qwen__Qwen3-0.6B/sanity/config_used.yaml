@@ -1,0 +1,17 @@
+generation:
+  do_sample: false
+ids:
+- 240
+- 496
+- 755
+model:
+  author: Qwen
+  batch_size: 1
+  family: qwen3
+  max_new_tokens: 256
+  name: Qwen3-0.6B
+  quantization: bf16
+  repo_id: Qwen/Qwen3-0.6B
+  thinking: false
+n_examples: 3
+seed: 372

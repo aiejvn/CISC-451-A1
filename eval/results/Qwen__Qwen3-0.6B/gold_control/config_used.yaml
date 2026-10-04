@@ -1,0 +1,9 @@
+generation:
+  do_sample: false
+model:
+  adapter: /home/k6/CISC-451/CISC-451-A1/train/runs/c1_gold/r1_gold
+  max_new_tokens: 384
+  prompt_format: plan
+  repo_id: Qwen/Qwen3-0.6B
+  thinking: false
+n_examples: 1034

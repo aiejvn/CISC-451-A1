@@ -1,0 +1,3 @@
+SELECT Flights.Airline FROM flights WHERE Flights.Airline IN (SELECT Airline FROM airlines WHERE Country = 'CVO') AND Flights.Airline NOT IN (SELECT Airline FROM airlines WHERE Country = 'APG')
+SELECT death, injury FROM death INNER JOIN ship ON death.cause_of_death = ship.id WHERE ship.tonne = t
+SELECT c.CountryCode, c.Name, c.CountryCode || ' ' || c.Language || ' ' || c.IsOfficial || '%' FROM country c JOIN countrylanguageCL clang ON c.CountryCode = clang.CountryCode WHERE clang.IsOfficial = 'English' OR clang.IsOfficial = 'Dutch'

@@ -1,0 +1,17 @@
+generation:
+  do_sample: false
+ids:
+- 240
+- 496
+- 755
+model:
+  author: allenai
+  batch_size: 1
+  family: olmo
+  max_new_tokens: 256
+  name: OLMo-2-0425-1B-Instruct
+  quantization: bf16
+  repo_id: allenai/OLMo-2-0425-1B-Instruct
+  thinking: false
+n_examples: 3
+seed: 372

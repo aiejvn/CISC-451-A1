@@ -1,0 +1,16 @@
+generation:
+  do_sample: false
+ids:
+- 240
+- 496
+- 755
+model:
+  author: deepseek-ai
+  batch_size: 1
+  family: reasoning_default
+  max_new_tokens: 4096
+  name: DeepSeek-R1-Distill-Qwen-1.5B
+  quantization: bf16
+  repo_id: deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B
+n_examples: 3
+seed: 372
