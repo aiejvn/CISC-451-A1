@@ -223,12 +223,57 @@ All models are evaluated zero-shot with the same prompt on the 20 databases of t
 | OLMo-2-0425-1B-Instruct | 57.2 | 89.9 | 97.8 | 111.4 | 86.9 |
 | DeepSeek-R1-Distill-Qwen-1.5B | 610.8 | 768.4 | 1096.0 | 1176.9 | 851.3 |
 
+#### 6a. DeepSeek-R1-Distill-Qwen-1.5B by generation outcome
 
-Based on the above tables, it appears that the larger reasoning model is not always the best model. DeepSeek-R1-Distill-Qwen-1.5B (reasoning, 1.5B) does not outperform the smaller non-reasoning models Qwen3-0.6B (thinking off) and OLMo-2-1B-Instruct on most metrics:
+Note that "Cut" means the generation reached the 4096-token limit. 
 
-* ⭐ **Component matching (table 1):** aggregated across all difficulties, DeepSeek has the lowest recall (0.174 vs. 0.209 and 0.211) and F1 (0.275 vs. 0.314 and 0.317), but the highest accuracy (0.661 vs. 0.628 and 0.640), and the highest accuracy on medium problems (0.642). The observation that the larger reasoning model is not best therefore holds for recall and F1 but not for accuracy. Since accuracy only scores components that the model actually wrote, this is consistent with DeepSeek often producing no usable SQL (see below): when it writes a component it is often correct, but it frequently writes none. OLMo has the best F1 aggregated across all difficulties, and performs best on easy problems (0.813 / 0.378 / 0.516).
-* **Exact matching (table 2):** aggregated across all difficulties, DeepSeek is lowest (0.085 vs. 0.099 for Qwen and 0.123 for OLMo).
+| Outcome | Problems (n) | Share | Avg. tokens | Exact match | Component F1 |
+|---|---|---|---|---|---|
+| Finished with SQL | 934 | 90.3% | 512 | 0.094 | 0.286 |
+| Finished, no usable SQL | 2 | 0.2% | 284 | 0.000 | 0.100 |
+| Cut while answering (after `</think>`) | 13 | 1.3% | 4096 | 0.000 | 0.096 |
+| Cut while thinking (no `</think>`) | 85 | 8.2% | 4096 | 0.000 | 0.093 |
+| All | 1034 | 100% | 851 | 0.085 | 0.275 |
+
+#### 6b. The same 934 questions that DeepSeek finished, for all three models
+
+| Model | Exact match | Component F1 |
+|---|---|---|
+| DeepSeek-R1-Distill-Qwen-1.5B | 0.094 | 0.286 |
+| Qwen3-0.6B | 0.103 | 0.317 |
+| OLMo-2-0425-1B-Instruct | 0.131 | 0.324 |
+
+#### 6c. Are the cut-off DeepSeek generations repetition loops?
+
+A text that repeats itself compresses well, so a low compression ratio of the last 3000 characters indicates a loop.
+
+| Generations | n | Median compression ratio | Ratio < 0.15 | Last 150 characters repeat 3 or more times |
+|---|---|---|---|---|
+| Cut off | 98 | 0.095 | 95.9% | 96.9% |
+| Finished | 936 | 0.418 | 0.0% | 0.2% |
+
+#### 6d. Share of DeepSeek generations that did not finish with SQL, by difficulty
+
+| | easy | medium | hard | extra | all |
+|---|---|---|---|---|---|
+| Problems (n) | 248 | 446 | 174 | 166 | 1034 |
+| Not finished with SQL (n) | 15 | 33 | 25 | 27 | 100 |
+| Share | 6.0% | 7.4% | 14.4% | 16.3% | 9.7% |
+
+
+Based on the above tables, the reasoning model did not perform well on this task. DeepSeek-R1-Distill-Qwen-1.5B (reasoning, 1.5B) is below the smaller non-reasoning models Qwen3-0.6B (thinking off) and OLMo-2-1B-Instruct on recall, F1, exact matching, and execution accuracy, and tables 6a to 6d show why:
+
+* **Component matching (table 1):** aggregated across all difficulties, DeepSeek has the lowest recall (0.174 vs. 0.209 and 0.211) and F1 (0.275 vs. 0.314 and 0.317). Its recall is the lowest at every difficulty level, and its F1 is the lowest at every level except medium (0.287 vs. 0.279 for OLMo). It does have the highest accuracy (0.661 vs. 0.628 and 0.640), but accuracy only scores components that the model actually wrote, so this reflects that DeepSeek often writes none (table 6a) and is more often right on the components it does write, and it does not compensate for the low recall. OLMo has the best F1 aggregated across all difficulties, and performs best on easy problems (0.813 / 0.378 / 0.516).
+* **Exact matching (table 2):** aggregated across all difficulties, DeepSeek is lowest (0.085 vs. 0.099 for Qwen and 0.123 for OLMo), and it solves no hard or extra problems (0.000).
 * **Execution accuracy (table 3):** aggregated across all difficulties, DeepSeek is clearly lowest (0.121 vs. 0.209 for Qwen and 0.195 for OLMo), and its accuracy falls to 0.017 on hard and 0.006 on extra problems.
+
+**Why the reasoning model does poorly.** Three observations from tables 6a to 6d explain the result.
+
+1. *It often fails to produce an answer.* 100 of 1034 generations (9.7%) end without usable SQL (table 6a): 85 never leave the reasoning phase, 13 are cut while writing the answer, and 2 finish without SQL. All of them score 0 on exact matching. The share grows with difficulty, from 6.0% on easy to 16.3% on extra problems (table 6d), which contributes to the collapse on hard and extra problems.
+2. *The cut-off generations are loops, not long but productive reasoning.* The tails of 95.9% of cut-off generations are highly repetitive (compression ratio below 0.15, median 0.095), compared with none of the finished generations (median 0.418) (table 6c). For example, the model rewrites the same query and says "So the final query is:" again and again without converging.
+3. *Finishing does not make it better.* On the 934 questions where DeepSeek did finish with SQL, its exact matching accuracy (0.094) and component F1 (0.286) are still below those of Qwen (0.103 and 0.317) and OLMo (0.131 and 0.324) on the same questions (table 6b), while it generated 512 tokens on average for these questions, compared with 46 for Qwen and 87 for OLMo averaged over all questions (tables 6 and 6a). Even if the 100 unfinished generations were solved as often as the finished ones, DeepSeek's overall exact matching accuracy would only rise from 0.085 to about 0.094, which is still below OLMo (0.123) and slightly below Qwen (0.099). The unfinished questions are harder than average, so the true ceiling is lower.
+
+So the reasoning trace mostly lengthens the output and sometimes never terminates, and it does not improve the SQL when it does terminate.
 
 **2. Performance varies across databases.** Tables 4 and 5 report execution and exact matching accuracy on each of the 20 databases, all of which are unseen by the models. Execution accuracy ranges from 0.10 (course_teach) to 0.53 (singer) for Qwen3-0.6B, from 0.05 (pets_1) to 0.37 (singer) for OLMo-2-1B, and from 0.00 (concert_singer) to 0.27 (singer and voter_1) for DeepSeek-R1-Distill-Qwen-1.5B. The best model also differs by database: Qwen3-0.6B has the highest execution accuracy on 13 databases, OLMo-2-1B on 8, and DeepSeek-R1-Distill-Qwen-1.5B on 1 (ties are counted for each tied model). For example, OLMo-2-1B performs best on car_1 (0.21 vs. 0.11 and 0.05) and student_transcripts_tracking (0.24 vs. 0.13 and 0.06), while Qwen3-0.6B performs best on world_1, tvshow, and orchestra. DeepSeek-R1-Distill-Qwen-1.5B has the highest exact matching accuracy on flight_2 (0.20 vs. 0.07 and 0.10). Databases with few problems (real_estate_properties with n=4, voter_1 with n=15, battle_death with n=16, and museum_visit with n=18) are too small to rank the models reliably, since a single problem changes a score by 6 to 25 percentage points.
 
@@ -240,7 +285,7 @@ Based on the above tables, it appears that the larger reasoning model is not alw
 
 **Interpretation and limitations.** Our working hypothesis is that Text-to-SQL at this scale does not benefit from an explicit reasoning trace, and that a non-reasoning model with 0.5B to 1B parameters is sufficient. The results are consistent with this hypothesis, but they do not establish that Text-to-SQL is too simple for reasoning models, because several confounds are not controlled:
 
-* **Truncation and failed outputs for DeepSeek.** 98 of 1034 generations (9.5%) reach the 4096-token limit, and 87 DeepSeek predictions contain fewer than 3 words, i.e. effectively no SQL. These count as failures on every metric and likely lower DeepSeek's recall, exact matching, and execution scores. A larger token budget could change the ranking.
+* **Truncation and failed outputs for DeepSeek.** 98 of 1034 generations (9.5%) reach the 4096-token limit, and 87 DeepSeek predictions contain fewer than 3 words, i.e. effectively no SQL. These count as failures on every metric and lower DeepSeek's recall, exact matching, and execution scores. Table 6b shows that removing these cases would not change the ranking, since DeepSeek is also lower on the questions it finished, and table 6c shows that the cut-off generations are repetition loops, so a larger token budget is unlikely to rescue them. 
 * **Model differences beyond reasoning.** The three models differ in size (0.6B, 1B, and 1.5B parameters) and in pretraining and post-training, not only in whether they reason. DeepSeek-R1-Distill-Qwen-1.5B is also a distilled model, so the effect of reasoning cannot be separated from the quality of distillation.
 * **Single run and sample size.** We report one run with one seed and no confidence intervals. Differences of a few points (for example 0.099 vs. 0.123 exact matching accuracy for Qwen and OLMo, or 0.209 vs. 0.195 execution accuracy) may not be significant.
 * **Aggregated component matching.** The component matching row in table 1 is our own macro-average, namely the mean of the 10 per-component accuracy and recall scores with F1 computed from these two means, and is not a number reported by Spider.
@@ -251,6 +296,12 @@ Based on the above tables, it appears that the larger reasoning model is not alw
 RQ2: How do characteristics of reasoning traces (of reasoning LLM) relate to Text-to-SQL performance?
 
 ## Methodology
+
+To answer this question, we examine the Token Count and Information Retention for each model. In a reasoning trace, the Token Count measures the total number of tokens generated in the reasoning chain, and Information Retention measures how frequently facts that were not in the initial prompt nor logically derived from prior steps were introduced, i.e., how frequent hallucinations occur. 
+
+We examine the Token Count of the reasoning trace as we believe it should scale positively with the difficulty of the related Text-to-SQL problem. Easy questions should require less thinking tokens, while extra-hard questions should require significantly more, and any that disobey this relation should be given special attention. We compute it during inference by simply counting the number of tokens the model outputs. We will test this using Spearman's Rank Correlation
+
+We also examine Information Retention of the reasoning trace as we believe any reasoning traces that have low Information Retention, or high frequency of hallucinations, should result in lower-performing answers than those with higher Information Retention/lower frequency of hallucinations. Additionally, harder problems should not cause lower Information Retention. If this is the case, we must examine and analyze the assumptions and hallucinations introduced by the model to better understand its underlying biases.
 
 ## Results
 
@@ -267,8 +318,6 @@ We expect PlanPlay-SQL to improve performance in two ways. The warm start teache
 [todo: the schema-only databases from build_spider_dbs.py have no rows, so execution checking and execution accuracy need the official Spider database files. todo: decide how the warm start gets plans, since gold SQL has none. todo: add training settings (learning rate, epochs, batch size, rounds, samples per question, validation databases, seed).]
 
 ## Results
-
-[todo: the "improved" row below is the checkpoint after the supervised stages only (warm start plus 1500 further gold questions, plan format). Add rows for the VBI-FT and self-play checkpoints once they are evaluated on the dev set.]
 
 Table 7 compares the original Qwen3-0.6B from Task 1 with the adapted model on the same 1034 Spider dev questions, with the same metrics and the same execution-checking databases. The adapted model uses the plan-then-SQL prompt, greedy decoding, and a maximum of 384 new tokens (Task 1: 256). Execution accuracy is computed on mock databases (see the limitations below), so we treat exact matching accuracy as the more reliable number.
 
