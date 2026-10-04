@@ -1,0 +1,237 @@
+{
+  "count": {
+    "count": {
+      "easy": 248.0,
+      "medium": 446.0,
+      "hard": 174.0,
+      "extra": 166.0,
+      "all": 1034.0
+    }
+  },
+  "exact matching accuracy": {
+    "exact match": {
+      "easy": 0.238,
+      "medium": 0.094,
+      "hard": 0.011,
+      "extra": 0.0,
+      "all": 0.1
+    }
+  },
+  "partial matching accuracy": {
+    "select": {
+      "easy": 0.818,
+      "medium": 0.648,
+      "hard": 0.889,
+      "extra": 0.0,
+      "all": 0.739
+    },
+    "select(no AGG)": {
+      "easy": 0.841,
+      "medium": 0.659,
+      "hard": 0.889,
+      "extra": 0.0,
+      "all": 0.755
+    },
+    "where": {
+      "easy": 0.682,
+      "medium": 0.585,
+      "hard": 0.333,
+      "extra": 0.0,
+      "all": 0.612
+    },
+    "where(no OP)": {
+      "easy": 0.682,
+      "medium": 0.604,
+      "hard": 0.333,
+      "extra": 0.0,
+      "all": 0.621
+    },
+    "group(no Having)": {
+      "easy": 0.333,
+      "medium": 0.833,
+      "hard": 1.0,
+      "extra": 0.0,
+      "all": 0.727
+    },
+    "group": {
+      "easy": 0.0,
+      "medium": 0.667,
+      "hard": 0.5,
+      "extra": 0.0,
+      "all": 0.455
+    },
+    "order": {
+      "easy": 0.833,
+      "medium": 0.714,
+      "hard": 0.667,
+      "extra": 0.0,
+      "all": 0.759
+    },
+    "and/or": {
+      "easy": 1.0,
+      "medium": 0.924,
+      "hard": 0.895,
+      "extra": 0.88,
+      "all": 0.93
+    },
+    "IUEN": {
+      "easy": 0.0,
+      "medium": 0.0,
+      "hard": 0.0,
+      "extra": 0.0,
+      "all": 0.0
+    },
+    "keywords": {
+      "easy": 0.893,
+      "medium": 0.843,
+      "hard": 0.375,
+      "extra": 0.0,
+      "all": 0.836
+    }
+  },
+  "partial matching recall": {
+    "select": {
+      "easy": 0.29,
+      "medium": 0.132,
+      "hard": 0.046,
+      "extra": 0.0,
+      "all": 0.134
+    },
+    "select(no AGG)": {
+      "easy": 0.298,
+      "medium": 0.135,
+      "hard": 0.046,
+      "extra": 0.0,
+      "all": 0.137
+    },
+    "where": {
+      "easy": 0.278,
+      "medium": 0.17,
+      "hard": 0.021,
+      "extra": 0.0,
+      "all": 0.132
+    },
+    "where(no OP)": {
+      "easy": 0.278,
+      "medium": 0.176,
+      "hard": 0.021,
+      "extra": 0.0,
+      "all": 0.134
+    },
+    "group(no Having)": {
+      "easy": 0.05,
+      "medium": 0.038,
+      "hard": 0.051,
+      "extra": 0.0,
+      "all": 0.03
+    },
+    "group": {
+      "easy": 0.0,
+      "medium": 0.03,
+      "hard": 0.026,
+      "extra": 0.0,
+      "all": 0.018
+    },
+    "order": {
+      "easy": 0.455,
+      "medium": 0.133,
+      "hard": 0.036,
+      "extra": 0.0,
+      "all": 0.095
+    },
+    "and/or": {
+      "easy": 0.988,
+      "medium": 1.0,
+      "hard": 0.981,
+      "extra": 1.0,
+      "all": 0.994
+    },
+    "IUEN": {
+      "easy": 0.0,
+      "medium": 0.0,
+      "hard": 0.0,
+      "extra": 0.0,
+      "all": 0.0
+    },
+    "keywords": {
+      "easy": 0.333,
+      "medium": 0.156,
+      "hard": 0.017,
+      "extra": 0.0,
+      "all": 0.129
+    }
+  },
+  "partial matching f1": {
+    "select": {
+      "easy": 0.429,
+      "medium": 0.22,
+      "hard": 0.087,
+      "extra": 1.0,
+      "all": 0.227
+    },
+    "select(no AGG)": {
+      "easy": 0.44,
+      "medium": 0.223,
+      "hard": 0.087,
+      "extra": 1.0,
+      "all": 0.232
+    },
+    "where": {
+      "easy": 0.395,
+      "medium": 0.264,
+      "hard": 0.04,
+      "extra": 1.0,
+      "all": 0.217
+    },
+    "where(no OP)": {
+      "easy": 0.395,
+      "medium": 0.272,
+      "hard": 0.04,
+      "extra": 1.0,
+      "all": 0.22
+    },
+    "group(no Having)": {
+      "easy": 0.087,
+      "medium": 0.072,
+      "hard": 0.098,
+      "extra": 1.0,
+      "all": 0.057
+    },
+    "group": {
+      "easy": 1.0,
+      "medium": 0.058,
+      "hard": 0.049,
+      "extra": 1.0,
+      "all": 0.035
+    },
+    "order": {
+      "easy": 0.588,
+      "medium": 0.225,
+      "hard": 0.069,
+      "extra": 1.0,
+      "all": 0.169
+    },
+    "and/or": {
+      "easy": 0.994,
+      "medium": 0.96,
+      "hard": 0.936,
+      "extra": 0.936,
+      "all": 0.961
+    },
+    "IUEN": {
+      "easy": 1.0,
+      "medium": 1.0,
+      "hard": 1.0,
+      "extra": 1.0,
+      "all": 1.0
+    },
+    "keywords": {
+      "easy": 0.485,
+      "medium": 0.263,
+      "hard": 0.033,
+      "extra": 1.0,
+      "all": 0.224
+    }
+  },
+  "etype": "match"
+}

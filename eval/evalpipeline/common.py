@@ -1,5 +1,6 @@
 """Shared paths, config loading, data loading, prompts and schema lookup."""
 import json
+import os
 import random
 import sqlite3
 from pathlib import Path
@@ -17,7 +18,8 @@ RESULTS_DIR = EVAL_ROOT / "results"
 MODELS_CONFIG = EVAL_ROOT / "configs" / "models.yaml"
 # Spider checkout: only used for the schema-only sqlite DBs and evaluation.py.
 SPIDER_DIR = REPO_ROOT / "spider"
-DB_DIR = SPIDER_DIR / "database"
+# SPIDER_DB_DIR points schema lookup, training and evaluation at another database tree (e.g. mock_spider/database).
+DB_DIR = Path(os.environ.get("SPIDER_DB_DIR", SPIDER_DIR / "database")).resolve()
 EVALUATION_PY = SPIDER_DIR / "evaluation.py"
 TABLES_JSON = SPIDER_DIR / "evaluation_examples" / "examples" / "tables.json"  # evaluation.py FK map
 

@@ -42,6 +42,9 @@ def main() -> None:
                     help="generate only (no evaluation/summary); evaluate later with --skip-generate --run-id <id>")
     ap.add_argument("--models-path", type=Path, default=None, help="look for weights in <path>/<repo_id> first, e.g. ./models")
     ap.add_argument("--local-only", action="store_true", help="require weights under --models-path; never use the HF cache or network")
+    ap.add_argument("--resume", action="store_true", help="continue an interrupted generation with the same --run-id")
+    ap.add_argument("--loop-stop", action="store_true", help="stop generations stuck in a repetition loop (needs batch size 1)")
+    ap.add_argument("--loop-audit", type=int, default=0, help="with --loop-stop: let the first N detected loops run to max_new_tokens")
     args = ap.parse_args()
 
     if args.local_only and args.models_path is None:
@@ -54,9 +57,11 @@ def main() -> None:
         cfg = get_model_config(repo_id)
         if args.batch_size:
             cfg["batch_size"] = args.batch_size
+        if args.loop_stop:
+            cfg["loop_stop"] = {"min_new": 4096, "window": 2048, "every": 512, "ratio": 0.15, "patience": 3, "audit": args.loop_audit}
         run_dir = make_run_dir(repo_id, args.run_id)
         if not args.skip_generate:
-            generate(cfg, examples, run_dir, args.seed, args.models_path, args.local_only)
+            generate(cfg, examples, run_dir, args.seed, args.models_path, args.local_only, args.resume)
         if args.generation_only:
             print(f"{repo_id}: generation done -> {run_dir}")
             continue
