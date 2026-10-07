@@ -10,6 +10,11 @@ models:
     family: qwen3
     thinking: false
     max_new_tokens: 256
+  - author: Qwen
+    name: Qwen3-4B
+    family: qwen3
+    thinking: false
+    max_new_tokens: 4096
   - author: allenai
     name: OLMo-2-0425-1B-Instruct   # base gemma-4-E2B ships no chat template
     family: olmo
