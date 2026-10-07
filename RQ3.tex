@@ -1,33 +1,3 @@
-% RQ3.tex -- Task 3 / RQ3 section, factored out of REPORT.tex.
-%
-% Intended use: \input{RQ3.tex} into REPORT.tex, after \input{RQ1.tex} (this
-% file links back into Task 1's tab:overall-performance and sec:rq1-results
-% labels).
-%
-% Annotations made while converting this to reference-based numbering:
-%  - \section*{Task 3 -- RQ3: Methodology}, \section*{Task 3 -- RQ3:
-%    Results}, and \subsection*{Task 3 -- RQ3: Extension to Qwen3-4B} became
-%    real, numbered \section/\subsection commands with \label. The
-%    Extension subsection's title had "Task 3 -- RQ3: " stripped, since
-%    that's now implied by nesting under the numbered Task 3 section
-%    (matching how RQ1.tex strips the old manual "1.1"/"2.2" prefixes).
-%  - Tables 16, 17, 18, 21, 22, 23, 24 each got a \label; every in-text
-%    "Table 16/17/18/21/22/24" mention, including the forward reference
-%    from Table 16's own caption to Table 18, became a \ref.
-%  - Mentions of "Task 1" results now link to RQ1.tex's own labels
-%    (sec:rq1-results, tab:overall-performance) via \hyperref, so they stay
-%    live links even though Task 1's own numbering changed when RQ1.tex was
-%    built.
-%  - PRE-EXISTING ISSUE, NOT INTRODUCED HERE: Table 23's caption says
-%    "Settings as in Table 19", and the "Longer training and
-%    hyperparameters" paragraph discusses a 0.6B long-training sweep
-%    (h0/h4/h5/h6, "the best long 0.6B run (0.613 / 0.632)") that has no
-%    corresponding table anywhere in this document -- there is no Table 19
-%    or Table 20 to point to. This looks like a 0.6B sweep table (the
-%    equivalent of Table 23 for 0.6B) was planned/removed but the reference
-%    to it was never updated. Left as plain, unlinked text "Table 19" since
-%    there's nothing real to \ref; flagging for the author to either add
-%    the missing table or fix the caption.
 
 \section{Task 3 -- RQ3: Methodology}
 \label{sec:rq3-methodology}
@@ -37,9 +7,7 @@
 \subsection{Model and Option Selection}
 \label{sec:rq3-model-selection}
 
-\textbf{We select Option B -- Adaptation / Learning to Adapt: we adapt Qwen3-0.6B's parameters by fine-tuning on the Spider training split}, rather than Option A's reasoning-only strategies. \emph{Why:} Table~\ref{tab:overall-performance} shows Qwen3-0.6B has the highest execution accuracy (0.209) of the two models our compute budget allows us to fine-tune (DeepSeek-R1-Distill-Qwen-1.5B: 0.121), the widest exact-vs-execution gap of all three models (0.110, vs.\ 0.097 for Qwen3-4B and 0.036 for DeepSeek), and a component-matching accuracy (0.628) far above its recall (0.209). It already finds correct, executable queries but phrases them unlike Spider's conventions -- a style gap, not a reasoning gap, that fine-tuning on gold SQL should close directly.
-
-We improve Qwen3-0.6B [2] with thinking disabled, the same configuration as in \hyperref[sec:rq1-results]{Task 1}, for three reasons. First, compute: our compute is limited to a single RTX 4090, and iterative training on DeepSeek-R1-Distill-Qwen-1.5B would mean sampling and training on traces of about 850 tokens per question, while Qwen3-0.6B generates about 46 tokens per question, so we can sample and train over the whole Spider training split within budget. Second, headroom: as \ref{sec:rq3-model-selection} notes, it led our compute-feasible candidates but was still far from solved, and its outputs were the shortest, so there was a clear, measurable gap for adaptation to close. Third, comparability: Task 1's execution accuracy is measured on schema-only databases (no rows), so it is not directly comparable to the mock-database execution accuracy reported for Task 3 below; we re-evaluated the original model on the mock databases as well (table~\ref{tab:rq3-dev-results-06b}, ``Original (Task 1)'' row, 0.130) so that the Task 3 comparison between original and adapted models is apples-to-apples.
+\textbf{We select Option B -- Adaptation / Learning to Adapt: we adapt Qwen3-0.6B's parameters using PlanPlay-SQL}, rather than Option A's reasoning-only strategies. We chose it as its relatively small size makes it computationally efficient and accessible for finetuning on a single RTX 4090.
 
 \subsection{Approach: PlanPlay-SQL in Four Stages}
 \label{sec:rq3-approach}
@@ -48,14 +16,14 @@ We call our method \textbf{PlanPlay-SQL}: the model first writes a short \emph{p
 
 \begin{enumerate}
 \item \textbf{Plan prompting.} From [7] and [6], the model writes a short plan (tables and joins, columns, filters, aggregation and ordering) before the SQL. \emph{Why:} a model with no thinking mode otherwise has no scratch space to organize the schema before committing to SQL syntax.
-\item \textbf{Supervised warm start}: we attach a fresh LoRA adapter to the frozen base checkpoint and train only it, with ordinary cross-entropy loss, to imitate the gold SQL and its rule-based plan. \emph{Why:} Task 1 showed many of the model's outputs are valid SQL that differs from the gold query, so the fastest way to close that gap is to show it Spider's own conventions directly.
+\item \textbf{Supervised warm start}: we attach a fresh LoRA adapter to the frozen base checkpoint and train only the adapter to imitate the gold SQL and its rule-based plan. \emph{Why:} Task 1 showed many of the model's outputs are valid SQL that differs from the gold query, so the fastest way to close that gap is to show it Spider's own conventions directly.
 \item \textbf{Verification-based iterative fine-tuning (VBI-FT)}, following [5]: the model answers training questions, we execute its SQL and the gold SQL, keep the answers with matching results as positives, and fine-tune on them. \emph{Why:} this trains on the model's own output distribution rather than only gold text, which should reduce remaining execution errors without needing additional human-labeled data.
 \item \textbf{Self-play fine-tuning}, using the logistic loss of SPIN [8]: we train the best checkpoint to prefer a verified correct answer over an incorrect answer produced by the worst checkpoint. \emph{Why:} [5] found this stage added a further 0.6 to 0.8 points on top of verification-based fine-tuning, on much larger models, so we test whether a comparable gain appears at 0.6B.
 \end{enumerate}
 
-Training uses only the Spider training split, and checkpoints are selected on held-out training databases (\ref{sec:rq3-evaluation}), so the dev set stays untouched and evaluation stays cross-domain. We skip [5]'s synthetic question generation because Spider already provides gold SQL to execute against.
+We train using Spider's provided training split, and checkpoints are selected on held-out training databases (\ref{sec:rq3-evaluation}), so the dev set stays untouched and evaluation stays cross-domain. We skip [5]'s synthetic question generation because Spider already provides gold SQL to execute against.
 
-We expect PlanPlay-SQL to improve performance in two ways, which motivates reporting results after every stage rather than only for the final model. Stage 2 (the warm start) should raise exact and execution accuracy most, since it directly targets the style gap identified in \ref{sec:rq3-model-selection}. Stages 3-4 (verification and self-play) then train on the model's own execution-checked outputs, which should reduce its remaining execution errors, with most of the gain expected from stage 2 and only a further small contribution from self-play by analogy with [5]'s larger-model results. To measure each part, we report five rows on the same dev set and metrics as \hyperref[sec:rq1-results]{Task 1}: the original solution, the plan prompt only, the warm start only, warm start plus verification fine-tuning, and the full PlanPlay-SQL.
+We expect PlanPlay-SQL to improve performance in two ways: Stage 2 (the warm start) should raise exact and execution accuracy most, since it directly targets the style gap identified in \ref{sec:rq3-model-selection}. Stages 3-4 (verification and self-play) then train on the model's own execution-checked outputs, which should reduce its remaining execution errors, adding only a small gain from self-play by analogy with [5]'s larger-model results. To measure each part, we report five rows on the same dev set and metrics as \hyperref[sec:rq1-results]{Task 1}: the original solution, the plan prompt only, the warm start only, warm start plus verification fine-tuning, and the full PlanPlay-SQL.
 
 \subsection{Model Training}
 \label{sec:rq3-training}
@@ -170,101 +138,113 @@ Out of 1034 dev questions, the adapted model gets 260 right that the original go
 
 \begin{itemize}
 \item \textbf{Mock databases.} The official Spider database files with rows were not available, so we generated databases with random rows seeded from the literals in each question's gold query. Execution accuracy on them only approximates the official execution accuracy. For example, Task 1's execution accuracy for the original model drops from 0.209 on schema-only databases to 0.130 on the mock databases (table~\ref{tab:overall-performance}), because on empty databases every query that returns nothing counts as correct. Exact matching accuracy does not depend on the databases.
-\item \textbf{One run per configuration, one seed}, with no confidence intervals. The validation differences between the supervised control and VBI-FT are within sampling error.
 \item \textbf{Different prompt and token budget.} The adapted model uses a different prompt and a larger token budget than the original, so the gain combines fine-tuning, the plan format, and the longer limit.
-\item \textbf{Not the full method on dev.} The dev-set results are for the supervised stages only. VBI-FT and self-play were compared on the validation set.
 \end{itemize}
 
-\subsection{Extension to Qwen3-4B}
-\label{sec:rq3-extension-4b}
+% \subsection{Extension to Qwen3-4B}
+% \label{sec:rq3-extension-4b}
 
-To see whether PlanPlay-SQL still helps a larger model, we repeated the main RQ3 experiments on Qwen3-4B [2] with thinking disabled. Everything except the base checkpoint is unchanged: the same code (\texttt{--base Qwen/Qwen3-4B}), prompts, plan targets, LoRA target modules, training questions, seed, 707-question validation set, Spider dev set and mock databases, with one H100 per run. The ``Original'' row is our \hyperref[sec:rq1-results]{Task 1} greedy run of Qwen3-4B (thinking off), re-scored on the mock databases in the same way as the 0.6B baseline. We ran the table~\ref{tab:rq3-validation-accuracy-06b} stages with the table~\ref{tab:rq3-training-settings} settings and the four sweep settings that mattered for 0.6B (h0, h4, h5, h6). We did not re-run h1-h3, which were the weakest 0.6B settings. A 3-epoch warm start takes about 16 minutes on 4B, and a 30-epoch run on 3000 questions about 2 hours 10 minutes.
+% To see whether PlanPlay-SQL still helps a larger model, we repeated the main RQ3 experiments on Qwen3-4B [2] with thinking disabled. Everything except the base checkpoint is unchanged: the same code (\texttt{--base Qwen/Qwen3-4B}), prompts, plan targets, LoRA target modules, training questions, seed, 707-question validation set, Spider dev set and mock databases, with one H100 per run. The ``Original'' row is our \hyperref[sec:rq1-results]{Task 1} greedy run of Qwen3-4B (thinking off), re-scored on the mock databases in the same way as the 0.6B baseline. We ran the table~\ref{tab:rq3-validation-accuracy-06b} stages with the table~\ref{tab:rq3-training-settings} settings and the four sweep settings that mattered for 0.6B (h0, h4, h5, h6). We did not re-run h1-h3, which were the weakest 0.6B settings. A 3-epoch warm start takes about 16 minutes on 4B, and a 30-epoch run on 3000 questions about 2 hours 10 minutes.
 
-\begin{table}[H]
-\centering
-\footnotesize
-\caption{Original and adapted Qwen3-4B on the Spider dev set (1034 questions). Adapted = plan-format warm start, 3 epochs (table~\ref{tab:rq3-training-settings} settings). Component matching is accuracy / recall / F1 as in table~\ref{tab:rq3-dev-results-06b}. Execution accuracy is on mock databases.}
-\label{tab:rq3-dev-results-4b}
-\resizebox{\textwidth}{!}{%
-\begin{tabular}{llccccc}
-\toprule
-Metric & Model & easy & medium & hard & extra & all \\
-\midrule
-Problems (n) & & 248 & 446 & 174 & 166 & 1034 \\
-Component matching & Original (Task 1) & 0.838 / 0.574 / 0.681 & 0.670 / 0.306 / 0.420 & 0.796 / 0.262 / 0.394 & 0.485 / 0.150 / 0.229 & 0.797 / 0.306 / 0.442 \\
- & Adapted & 0.834 / 0.826 / 0.830 & 0.806 / 0.783 / 0.794 & 0.796 / 0.780 / 0.788 & 0.783 / 0.716 / 0.748 & 0.828 / 0.800 / 0.814 \\
-Exact matching & Original (Task 1) & 0.508 & 0.262 & 0.115 & 0.012 & 0.256 \\
- & Adapted & 0.786 & 0.760 & 0.517 & 0.458 & 0.677 \\
-Execution (mock DB) & Original (Task 1) & 0.524 & 0.283 & 0.213 & 0.078 & 0.296 \\
- & Adapted & 0.867 & 0.753 & 0.603 & 0.482 & 0.712 \\
-\bottomrule
-\end{tabular}}
-\end{table}
+% \begin{table}[H]
+% \centering
+% \footnotesize
+% \caption{Original and adapted Qwen3-4B on the Spider dev set (1034 questions). Adapted = plan-format warm start, 3 epochs (table~\ref{tab:rq3-training-settings} settings). Component matching is accuracy / recall / F1 as in table~\ref{tab:rq3-dev-results-06b}. Execution accuracy is on mock databases.}
+% \label{tab:rq3-dev-results-4b}
+% \resizebox{\textwidth}{!}{%
+% \begin{tabular}{llccccc}
+% \toprule
+% Metric & Model & easy & medium & hard & extra & all \\
+% \midrule
+% Problems (n) & & 248 & 446 & 174 & 166 & 1034 \\
+% Component matching & Original (Task 1) & 0.838 / 0.574 / 0.681 & 0.670 / 0.306 / 0.420 & 0.796 / 0.262 / 0.394 & 0.485 / 0.150 / 0.229 & 0.797 / 0.306 / 0.442 \\
+%  & Adapted & 0.834 / 0.826 / 0.830 & 0.806 / 0.783 / 0.794 & 0.796 / 0.780 / 0.788 & 0.783 / 0.716 / 0.748 & 0.828 / 0.800 / 0.814 \\
+% Exact matching & Original (Task 1) & 0.508 & 0.262 & 0.115 & 0.012 & 0.256 \\
+%  & Adapted & 0.786 & 0.760 & 0.517 & 0.458 & 0.677 \\
+% Execution (mock DB) & Original (Task 1) & 0.524 & 0.283 & 0.213 & 0.078 & 0.296 \\
+%  & Adapted & 0.867 & 0.753 & 0.603 & 0.482 & 0.712 \\
+% \bottomrule
+% \end{tabular}}
+% \end{table}
 
-\begin{table}[H]
-\centering
-\footnotesize
-\caption{Validation accuracy (execution match on mock databases, 707 questions) after each stage, Qwen3-4B next to the Qwen3-0.6B numbers from table~\ref{tab:rq3-validation-accuracy-06b}. Rows marked * use the same 300-question subset as table~\ref{tab:rq3-validation-accuracy-06b}.}
-\label{tab:rq3-validation-accuracy-4b}
-\begin{tabular}{lcc}
-\toprule
-Stage & Qwen3-4B & Qwen3-0.6B \\
-\midrule
-Base model, original prompt* & 0.703 & 0.407 \\
-Base model, plan prompt, no training* & 0.577 & 0.050 \\
-Warm start on 1500 gold questions (plan format, 3 epochs) & 0.754 & 0.622 \\
-+ 1500 further gold questions (supervised control) & 0.792 & 0.652 \\
-+ VBI-FT on the same 1500 questions (hard questions only; 4B: 275 verified samples) & 0.762 & 0.651 \\
-+ VBI-FT (800 questions, 0.767), then self-play, lower learning rate (1e-5) & 0.765 & 0.631 \\
-+ self-play, higher learning rate (1e-4, 2 epochs) & 0.115 & 0.034 \\
-\bottomrule
-\end{tabular}
-\end{table}
+% \begin{table}[H]
+% \centering
+% \footnotesize
+% \caption{Validation accuracy (execution match on mock databases, 707 questions) after each stage, Qwen3-4B next to the Qwen3-0.6B numbers from table~\ref{tab:rq3-validation-accuracy-06b}. Rows marked * use the same 300-question subset as table~\ref{tab:rq3-validation-accuracy-06b}.}
+% \label{tab:rq3-validation-accuracy-4b}
+% \begin{tabular}{lcc}
+% \toprule
+% Stage & Qwen3-4B & Qwen3-0.6B \\
+% \midrule
+% Base model, original prompt* & 0.703 & 0.407 \\
+% Base model, plan prompt, no training* & 0.577 & 0.050 \\
+% Warm start on 1500 gold questions (plan format, 3 epochs) & 0.754 & 0.622 \\
+% + 1500 further gold questions (supervised control) & 0.792 & 0.652 \\
+% + VBI-FT on the same 1500 questions (hard questions only; 4B: 275 verified samples) & 0.762 & 0.651 \\
+% + VBI-FT (800 questions, 0.767), then self-play, lower learning rate (1e-5) & 0.765 & 0.631 \\
+% + self-play, higher learning rate (1e-4, 2 epochs) & 0.115 & 0.034 \\
+% \bottomrule
+% \end{tabular}
+% \end{table}
 
-\begin{landscape}
-\begin{table}[H]
-\centering
-\footnotesize
-\caption{Qwen3-4B validation accuracy (707 questions) during 30-epoch plan-format warm starts, evaluated every 5 epochs. Settings as in Table 19. The 3-epoch warm start reached 0.755, 0.775 and 0.754 after epochs 1, 2 and 3.}
-\label{tab:rq3-sweep-4b}
-\resizebox{\linewidth}{!}{%
-\begin{tabular}{lcccccccccccc}
-\toprule
-Run & LR & Batch & LoRA r/alpha & Train Qs & ep 5 & ep 10 & ep 15 & ep 20 & ep 25 & ep 30 & Best (epoch) & 0.6B best \\
-\midrule
-h0 (table~\ref{tab:rq3-training-settings} config) & 0.0002 & 32 & 32/64 & 1500 & 0.743 & 0.741 & 0.721 & 0.730 & 0.731 & 0.733 & 0.743 (5) & 0.641 \\
-h4 (larger LoRA) & 0.0002 & 32 & 64/128 & 1500 & 0.709 & 0.762 & 0.738 & 0.744 & 0.750 & 0.751 & 0.762 (10) & 0.658 \\
-h5 (2x data) & 0.0001 & 32 & 32/64 & 3000 & 0.765 & 0.754 & 0.745 & 0.737 & 0.740 & 0.744 & 0.765 (5) & 0.677 \\
-h6 (larger LoRA + 2x data) & 0.0001 & 32 & 64/128 & 3000 & 0.745 & 0.760 & 0.778 & 0.784 & 0.778 & 0.778 & 0.784 (20) & 0.693 \\
-\bottomrule
-\end{tabular}}
-\end{table}
-\end{landscape}
+% \begin{table}[H]
+% \centering
+% \footnotesize
+% \caption{Qwen3-4B validation accuracy (707 questions) during 30-epoch plan-format warm starts, evaluated every 5 epochs. Run configurations. Settings as in Table 19.}
+% \label{tab:rq3-sweep-4b-config}
+% \begin{tabular}{lcccc}
+% \toprule
+% Run & LR & Batch & LoRA r/alpha & Train Qs \\
+% \midrule
+% h0 (table~\ref{tab:rq3-training-settings} config) & 0.0002 & 32 & 32/64 & 1500 \\
+% h4 (larger LoRA) & 0.0002 & 32 & 64/128 & 1500 \\
+% h5 (2x data) & 0.0001 & 32 & 32/64 & 3000 \\
+% h6 (larger LoRA + 2x data) & 0.0001 & 32 & 64/128 & 3000 \\
+% \bottomrule
+% \end{tabular}
+% \end{table}
 
-\begin{table}[H]
-\centering
-\footnotesize
-\caption{Qwen3-4B on the Spider dev set (1034 questions), exact matching / execution accuracy (mock databases).}
-\label{tab:rq3-dev-sweep-4b}
-\resizebox{\textwidth}{!}{%
-\begin{tabular}{lccccc}
-\toprule
-Model & easy & medium & hard & extra & all \\
-\midrule
-Original (Task 1) & 0.508 / 0.524 & 0.262 / 0.283 & 0.115 / 0.213 & 0.012 / 0.078 & 0.256 / 0.296 \\
-Adapted, table~\ref{tab:rq3-dev-results-4b} (3 epochs) & 0.786 / 0.867 & 0.760 / 0.753 & 0.517 / 0.603 & 0.458 / 0.482 & 0.677 / 0.712 \\
-h4 (larger LoRA), 10 epochs & 0.863 / 0.899 & 0.722 / 0.724 & 0.598 / 0.695 & 0.470 / 0.494 & 0.694 / 0.724 \\
-h4 (larger LoRA), 20 epochs & 0.859 / 0.891 & 0.751 / 0.749 & 0.575 / 0.626 & 0.452 / 0.536 & 0.699 / 0.728 \\
-h4 (larger LoRA), 30 epochs & 0.867 / 0.903 & 0.753 / 0.749 & 0.569 / 0.638 & 0.446 / 0.548 & 0.700 / 0.735 \\
-h5 (2x data), 10 epochs & 0.790 / 0.851 & 0.744 / 0.762 & 0.540 / 0.626 & 0.428 / 0.494 & 0.670 / 0.718 \\
-h5 (2x data), 20 epochs & 0.851 / 0.895 & 0.774 / 0.767 & 0.569 / 0.655 & 0.422 / 0.530 & 0.701 / 0.741 \\
-h5 (2x data), 30 epochs & 0.851 / 0.887 & 0.778 / 0.774 & 0.575 / 0.655 & 0.446 / 0.554 & 0.708 / 0.746 \\
-h6 (both), 10 epochs & 0.867 / 0.887 & 0.740 / 0.724 & 0.540 / 0.644 & 0.428 / 0.512 & 0.687 / 0.716 \\
-h6 (both), 20 epochs & 0.839 / 0.883 & 0.751 / 0.726 & 0.603 / 0.678 & 0.476 / 0.542 & 0.703 / 0.726 \\
-h6 (both), 30 epochs & 0.843 / 0.887 & 0.760 / 0.735 & 0.632 / 0.684 & 0.458 / 0.536 & 0.710 / 0.731 \\
-\bottomrule
-\end{tabular}}
-\end{table}
+% \begin{table}[H]
+% \centering
+% \footnotesize
+% \caption{Qwen3-4B validation accuracy across warm-start epochs. The 3-epoch warm start reached 0.755, 0.775 and 0.754 after epochs 1, 2 and 3.}
+% \label{tab:rq3-sweep-4b-results}
+% \begin{tabular}{lcccccccc}
+% \toprule
+% Run & ep 5 & ep 10 & ep 15 & ep 20 & ep 25 & ep 30 & Best (epoch) & 0.6B best \\
+% \midrule
+% h0 & 0.743 & 0.741 & 0.721 & 0.730 & 0.731 & 0.733 & 0.743 (5) & 0.641 \\
+% h4 & 0.709 & 0.762 & 0.738 & 0.744 & 0.750 & 0.751 & 0.762 (10) & 0.658 \\
+% h5 & 0.765 & 0.754 & 0.745 & 0.737 & 0.740 & 0.744 & 0.765 (5) & 0.677 \\
+% h6 & 0.745 & 0.760 & 0.778 & 0.784 & 0.778 & 0.778 & 0.784 (20) & 0.693 \\
+% \bottomrule
+% \end{tabular}
+% \end{table}
+
+% \begin{table}[H]
+% \centering
+% \footnotesize
+% \caption{Qwen3-4B on the Spider dev set (1034 questions), exact matching / execution accuracy (mock databases).}
+% \label{tab:rq3-dev-sweep-4b}
+% \resizebox{\textwidth}{!}{%
+% \begin{tabular}{lccccc}
+% \toprule
+% Model & easy & medium & hard & extra & all \\
+% \midrule
+% Original (Task 1) & 0.508 / 0.524 & 0.262 / 0.283 & 0.115 / 0.213 & 0.012 / 0.078 & 0.256 / 0.296 \\
+% Adapted, table~\ref{tab:rq3-dev-results-4b} (3 epochs) & 0.786 / 0.867 & 0.760 / 0.753 & 0.517 / 0.603 & 0.458 / 0.482 & 0.677 / 0.712 \\
+% h4 (larger LoRA), 10 epochs & 0.863 / 0.899 & 0.722 / 0.724 & 0.598 / 0.695 & 0.470 / 0.494 & 0.694 / 0.724 \\
+% h4 (larger LoRA), 20 epochs & 0.859 / 0.891 & 0.751 / 0.749 & 0.575 / 0.626 & 0.452 / 0.536 & 0.699 / 0.728 \\
+% h4 (larger LoRA), 30 epochs & 0.867 / 0.903 & 0.753 / 0.749 & 0.569 / 0.638 & 0.446 / 0.548 & 0.700 / 0.735 \\
+% h5 (2x data), 10 epochs & 0.790 / 0.851 & 0.744 / 0.762 & 0.540 / 0.626 & 0.428 / 0.494 & 0.670 / 0.718 \\
+% h5 (2x data), 20 epochs & 0.851 / 0.895 & 0.774 / 0.767 & 0.569 / 0.655 & 0.422 / 0.530 & 0.701 / 0.741 \\
+% h5 (2x data), 30 epochs & 0.851 / 0.887 & 0.778 / 0.774 & 0.575 / 0.655 & 0.446 / 0.554 & 0.708 / 0.746 \\
+% h6 (both), 10 epochs & 0.867 / 0.887 & 0.740 / 0.724 & 0.540 / 0.644 & 0.428 / 0.512 & 0.687 / 0.716 \\
+% h6 (both), 20 epochs & 0.839 / 0.883 & 0.751 / 0.726 & 0.603 / 0.678 & 0.476 / 0.542 & 0.703 / 0.726 \\
+% h6 (both), 30 epochs & 0.843 / 0.887 & 0.760 / 0.735 & 0.632 / 0.684 & 0.458 / 0.536 & 0.710 / 0.731 \\
+% \bottomrule
+% \end{tabular}}
+% \end{table}
 
 \subsubsection{Overall Results}
 
@@ -278,6 +258,6 @@ The ordering of the stages is the same as for 0.6B, with two differences. First,
 
 Longer training helps 4B less than 0.6B. Training loss falls below 1e-3 by epoch 15 and rounds to zero by epoch 20 in every run, and on validation only h6 (larger adapter and 2x data) ends above the 3-epoch warm start's best epoch (0.784 at epoch 20 against 0.775). h0 and h5 peak at epoch 5 and then lose 1 to 2 points, and h4 peaks at epoch 10. As for 0.6B, h6 is the best setting on validation and has the fewest queries that fail to execute (error fraction about 0.02, against about 0.06 to 0.07 for h0, h4 and h5). On dev, the three long settings again end close together: at 30 epochs they reach 0.700 to 0.710 exact matching and 0.731 to 0.746 execution accuracy, 2 to 3 points above the 3-epoch model on both metrics. These differences between settings are below the roughly 1.4-point sampling error of the dev set. The validation and dev sets again disagree: h5 declines on validation after epoch 5 but improves on dev through epoch 30.
 
-\subsubsection{Answer for RQ3 at 4B}
+% \subsubsection{Answer for RQ3 at 4B}
 
-PlanPlay-SQL raises Qwen3-4B's dev exact matching from 0.256 to 0.677 with the 3-epoch warm start, and to 0.700--0.710 with 30-epoch runs, and execution accuracy on mock databases from 0.296 to 0.712 and 0.731--0.746. The supervised warm start provides almost all of the gain. As the base model gets stronger, verification-based fine-tuning finds fewer hard questions to learn from, and longer training adds only 2 to 3 points. Self-play gives no gain at either scale. The same limitations as above apply (mock databases, one seed, prompt and token-budget differences, intermediate checkpoints of 30-epoch schedules, and dev results only for the supervised stages). The 4B ``Original'' run used a 4096-token limit against 384 for the adapted model, and h1-h3 were not repeated at 4B.
+% PlanPlay-SQL raises Qwen3-4B's dev exact matching from 0.256 to 0.677 with the 3-epoch warm start, and to 0.700--0.710 with 30-epoch runs, and execution accuracy on mock databases from 0.296 to 0.712 and 0.731--0.746. The supervised warm start provides almost all of the gain. As the base model gets stronger, verification-based fine-tuning finds fewer hard questions to learn from, and longer training adds only 2 to 3 points. Self-play gives no gain at either scale. The same limitations as above apply (mock databases, one seed, prompt and token-budget differences, intermediate checkpoints of 30-epoch schedules, and dev results only for the supervised stages). The 4B ``Original'' run used a 4096-token limit against 384 for the adapted model, and h1-h3 were not repeated at 4B.

@@ -18,7 +18,7 @@ import yaml
 from eval.evalpipeline.adapters import extract_sql
 from eval.evalpipeline.common import REPO_ROOT, RESULTS_DIR, load_dev, write_gold
 from eval.evalpipeline.evaluate import evaluate_run
-from .common import MAX_NEW, RUNS_DIR as RUNS, build_splits, chat_prompt, eval_examples, generate, load_base, load_lora
+from .common import BASE_ID, MAX_NEW, RUNS_DIR as RUNS, build_splits, chat_prompt, eval_examples, generate, load_base, load_lora
 
 MODEL_DIR = RESULTS_DIR / "Qwen__Qwen3-0.6B"
 CHECKPOINTS = [  # name, adapter dir, prompt format
@@ -41,13 +41,14 @@ def baseline_on_mock_db() -> None:
     evaluate_run(out, "all")
 
 
-def run_one(name: str, adapter: Path, fmt: str) -> None:
+def run_one(name: str, adapter: Path, fmt: str, base_id: str = BASE_ID) -> None:
+    model_dir = RESULTS_DIR / base_id.replace("/", "__")
     dev = load_dev()
-    tok, base = load_base(checkpoint=False)
+    tok, base = load_base(checkpoint=False, base_id=base_id)
     model = load_lora(base, adapter, trainable=False)
     prompts = [chat_prompt(tok, ex["question"], ex["db_id"], fmt) for ex in dev]
     raws = [o[0] for o in generate(model, tok, prompts, MAX_NEW[fmt])]
-    out = MODEL_DIR / name
+    out = model_dir / name
     out.mkdir(parents=True, exist_ok=True)
     write_gold(dev, out / "gold.txt")
     preds = [extract_sql(r) for r in raws]
@@ -57,7 +58,7 @@ def run_one(name: str, adapter: Path, fmt: str) -> None:
             f.write(json.dumps({"id": ex["id"], "db_id": ex["db_id"], "question": ex["question"], "gold": ex["query"],
                                 "raw": raw, "thinking": None, "pred": pred, "new_tokens": len(tok(raw)["input_ids"])}) + "\n")
     (out / "config_used.yaml").write_text(yaml.safe_dump({
-        "model": {"repo_id": "Qwen/Qwen3-0.6B", "adapter": str(adapter), "prompt_format": fmt, "thinking": False,
+        "model": {"repo_id": base_id, "adapter": str(adapter), "prompt_format": fmt, "thinking": False,
                   "max_new_tokens": MAX_NEW[fmt]},
         "generation": {"do_sample": False}, "n_examples": len(dev)}))
     evaluate_run(out, "all")

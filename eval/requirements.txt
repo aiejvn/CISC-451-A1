@@ -14,3 +14,5 @@ nltk
 scipy
 pandas
 matplotlib
+# reasoning_verification.py (Task 2 verification: logistic/ordinal regression)
+statsmodels

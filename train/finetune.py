@@ -17,8 +17,8 @@ from pathlib import Path
 import torch
 import torch.nn.functional as F
 
-from .common import (MAX_NEW, RUNS_DIR, build_splits, chat_prompt, encode, eval_examples, free, generate, label,
-                     load_base, load_lora, new_lora, seq_logps, sft_loss_fn, target_text, train)
+from .common import (BASE_ID, MAX_NEW, RUNS_DIR, build_splits, chat_prompt, encode, eval_examples, free, generate,
+                     label, load_base, load_lora, new_lora, seq_logps, sft_loss_fn, target_text, train)
 
 
 # --- helpers shared by the stages ---------------------------------------------------------------------
@@ -40,9 +40,9 @@ def val_eval(model, tok, val_ex, fmt):
     return {k: round(v, 4) if isinstance(v, float) else v for k, v in r.items() if k not in ("texts", "labels")}
 
 
-def gold_stage(init, out, examples, val_ex, fmt, lr, epochs, bs, seed, log, eval_steps=()):
+def gold_stage(init, out, examples, val_ex, fmt, lr, epochs, bs, seed, log, eval_steps=(), base_id=BASE_ID):
     """Control: continue supervised training on gold answers for the same questions the other stages use."""
-    tok, base = load_base()
+    tok, base = load_base(base_id=base_id)
     model = load_lora(base, init, trainable=True)
     items = [encode(tok, chat_prompt(tok, ex["question"], ex["db_id"], fmt), target_text(ex["query"], fmt)) for ex in examples]
     hook, select_best = step_hook(model, tok, val_ex, fmt, out, set(eval_steps), log)
@@ -81,8 +81,8 @@ def step_hook(model, tok, val_ex, fmt, out, steps, log):
 
 
 def vbi_stage(init, out, examples, val_ex, fmt, k, temp, lr, epochs, max_pos, bs, seed, log, hard_only=False,
-              eval_steps=(), cache=None):
-    tok, base = load_base()
+              eval_steps=(), cache=None, base_id=BASE_ID):
+    tok, base = load_base(base_id=base_id)
     model = load_lora(base, init, trainable=True)
     samples = sample_labeled(model, tok, examples, fmt, k, temp, cache=cache)
     items, n_pos_q = [], 0
@@ -111,9 +111,9 @@ def vbi_stage(init, out, examples, val_ex, fmt, k, temp, lr, epochs, max_pos, bs
 
 
 def selfplay_stage(main, opp, out, examples, val_ex, fmt, k, temp, lr, lam, epochs, bs, seed, log, eval_steps=(),
-                   cache=None):
+                   cache=None, base_id=BASE_ID):
     # 1) opponent: sample, keep wrong outputs, and compute reference log-probs of both completions
-    tok, base = load_base()
+    tok, base = load_base(base_id=base_id)
     opp_model = load_lora(base, opp, trainable=False)
     samples = sample_labeled(opp_model, tok, examples, fmt, k, temp, cache=cache)
     rng = random.Random(seed)
@@ -138,7 +138,7 @@ def selfplay_stage(main, opp, out, examples, val_ex, fmt, k, temp, lr, lam, epoc
     free()
 
     # 2) main model against the frozen opponent
-    tok, base = load_base()
+    tok, base = load_base(base_id=base_id)
     model = load_lora(base, main, trainable=True)
 
     def loss_fn(m, mb, batch):
@@ -167,7 +167,7 @@ def warm(args):
 
     out = RUNS_DIR / args.name
     out.mkdir(parents=True, exist_ok=True)
-    tok, base = load_base(checkpoint=not args.no_ckpt)
+    tok, base = load_base(checkpoint=not args.no_ckpt, base_id=args.base)
     train_ex, val_ex, _ = build_splits(tokenizer=tok)
     rng = random.Random(args.seed)
     if args.n_train:
@@ -179,6 +179,7 @@ def warm(args):
 
     model = new_lora(base, args.r, args.alpha)
     history = []
+    save_epochs = {int(x) for x in args.save_epochs.split(",") if x}
 
     def on_epoch(ep):
         if args.eval_every and ep % args.eval_every == 0:
@@ -186,6 +187,9 @@ def warm(args):
             row = {"epoch": ep, **{k: round(v, 4) if isinstance(v, float) else v for k, v in r.items() if k not in ("texts", "labels")}}
             history.append(row)
             print("  VAL", row, flush=True)
+        if ep in save_epochs:
+            model.save_pretrained(out / f"ep{ep}")
+            print(f"  saved snapshot {out / f'ep{ep}'}", flush=True)
 
     train(model, items, sft_loss_fn(tok.pad_token_id), lambda x: len(x[0]) + len(x[1]), args.epochs, args.lr, args.bs,
           token_budget=args.token_budget, seed=args.seed, on_epoch_end=on_epoch, log=lambda s: print(s, flush=True))
@@ -207,7 +211,7 @@ def run_stages(args):
         logf.write(s + "\n")
         logf.flush()
 
-    tok, base = load_base()
+    tok, base = load_base(base_id=args.base)
     train_ex, val_ex, _ = build_splits(tokenizer=tok)
     val_ex = random.Random(0).sample(val_ex, min(args.val_n, len(val_ex)))
     if args.exclude_n:
@@ -242,18 +246,18 @@ def run_stages(args):
             if stage == "gold":
                 log(f"round {r} gold-SFT control from {best} ({M[best]:.3f})")
                 res, extra = gold_stage(best, out, examples, val_ex, args.fmt, args.lr_vbi, args.epochs, args.bs, args.seed + r, log,
-                                       eval_steps)
+                                       eval_steps, base_id=args.base)
             elif stage == "vbi":
                 log(f"round {r} VBI-FT from {best} ({M[best]:.3f})")
                 res, extra = vbi_stage(best, out, examples, val_ex, args.fmt, args.k, args.temp, args.lr_vbi,
                                        args.epochs, args.max_pos, args.bs, args.seed + r, log, args.hard_only, eval_steps,
-                                       cache_for(best, args.k, r))
+                                       cache_for(best, args.k, r), base_id=args.base)
             else:
                 opp = min(M, key=M.get)
                 log(f"round {r} self-play main {best} ({M[best]:.3f}) vs opponent {opp} ({M[opp]:.3f})")
                 res, extra = selfplay_stage(best, opp, out, examples, val_ex, args.fmt, args.k_sp, args.temp, args.lr_sp,
                                             args.lam, args.epochs, args.bs, args.seed + r, log, eval_steps,
-                                            cache_for(opp, args.k_sp, r))
+                                            cache_for(opp, args.k_sp, r), base_id=args.base)
             M[out] = res["acc"]
             history.append({"stage": f"r{r}_{stage}", **res, **extra})
             log(f"  VAL r{r}_{stage}: {res} {extra}")
@@ -266,6 +270,7 @@ def main():
     sub = ap.add_subparsers(dest="cmd", required=True)
     w = sub.add_parser("warm", help="supervised warm start")
     w.add_argument("--name", required=True)
+    w.add_argument("--base", default=BASE_ID, help="HF repo id of the base checkpoint")
     w.add_argument("--fmt", choices=["sql", "plan"], default="sql")
     w.add_argument("--epochs", type=float, default=3)
     w.add_argument("--lr", type=float, default=2e-4)
@@ -275,11 +280,13 @@ def main():
     w.add_argument("--n_train", type=int, default=None)
     w.add_argument("--val_n", type=int, default=300)
     w.add_argument("--eval_every", type=int, default=1, help="evaluate on val every k epochs (0 = only at the end)")
+    w.add_argument("--save_epochs", default="", help="comma list of epochs to also save a full adapter snapshot to <out>/epN, e.g. 10,20,30")
     w.add_argument("--seed", type=int, default=0)
     w.add_argument("--no_ckpt", action="store_true", help="disable gradient checkpointing (faster, more memory)")
     w.add_argument("--token_budget", type=int, default=6000, help="max padded tokens per micro-batch")
     s = sub.add_parser("stages", help="gold / vbi / sp stages on a warm-start adapter")
     s.add_argument("--name", required=True)
+    s.add_argument("--base", default=BASE_ID, help="HF repo id of the base checkpoint (must match --init's base)")
     s.add_argument("--fmt", choices=["sql", "plan"], default="sql")
     s.add_argument("--init", required=True, help="warm-start adapter dir")
     s.add_argument("--stages", default="vbi,sp", help="comma list per round, e.g. vbi,sp or vbi")

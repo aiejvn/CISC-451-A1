@@ -186,8 +186,8 @@ END = "<|im_end|>"
 LORA_TARGETS = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
 
 
-def load_base(checkpoint: bool = True):
-    path = resolve_local_path(BASE_ID)
+def load_base(checkpoint: bool = True, base_id: str = BASE_ID):
+    path = resolve_local_path(base_id)
     tok = AutoTokenizer.from_pretrained(path, local_files_only=True, padding_side="left")
     model = AutoModelForCausalLM.from_pretrained(path, local_files_only=True, dtype=torch.bfloat16).cuda()
     if checkpoint:
