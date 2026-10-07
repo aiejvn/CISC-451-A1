@@ -1,0 +1,263 @@
+% RQ2.tex -- Task 2 / RQ2 section, factored out of REPORT.tex.
+%
+% Intended use: \input{RQ2.tex} into REPORT.tex, after \input{RQ1.tex} (this
+% file's cross-references into Task 1 -- table~\ref{tab:deepseek-outcome},
+% \ref{tab:tokens-per-example}, \ref{sec:sql-extraction}, etc. -- rely on
+% RQ1.tex's labels already being defined earlier in the same document).
+%
+% Structure: Methodology is organized per-feature (Feature 1: Token Count,
+% Feature 2: Information Retention), each with its own Definition / Why it's
+% relevant / How we computed it. Results is organized as descriptive
+% statistics, differences by correctness, differences by difficulty, and
+% relationship with Text-to-SQL correctness (the correlation analysis).
+
+\section{Task 2 -- RQ2: Methodology}
+\label{sec:rq2-methodology}
+
+\textbf{RQ2:} How do characteristics of reasoning traces (of reasoning LLM) relate to Text-to-SQL performance?
+
+To answer this question, we examine two features of each reasoning trace: Token Count and Information Retention. We compute both for all 1034 generations in DeepSeek-R1-Distill-Qwen-1.5B's main Task 1 run, then relate each to difficulty and to Text-to-SQL correctness.
+
+\subsection{Feature 1: Token Count}
+\label{sec:rq2-feature-tokencount}
+
+\textbf{Definition.} Token Count is the number of tokens in the reasoning segment of a generation, i.e.\ everything the model generates before \texttt{</think>}, excluding the final SQL answer. We split each generation into a reasoning segment and an answer segment using the same \texttt{</think>} split used in Task 1 (\ref{sec:sql-extraction}).
+
+\textbf{Why it's relevant.} We expect Token Count to scale positively with the difficulty of the related Text-to-SQL problem: easy questions should require fewer thinking tokens, while extra-hard questions should require significantly more. Any question that disobeys this relation, or where more tokens associate with worse rather than better answers, is given special attention in Results. Token Count is also the most direct, model-agnostic proxy we have for how much deliberation went into an answer, so it is a natural first feature to test against correctness.
+
+\textbf{How we computed it.} Token Count is the number of tokens in the reasoning segment only, re-tokenized with the model's own tokenizer (not the \texttt{new\_tokens} field logged during generation, which counts the whole generation, reasoning plus SQL). For generations that never emit \texttt{</think>} (truncated at the 4096-token generation limit, see Task 1's table~\ref{tab:deepseek-outcome}), the entire generated text is treated as the reasoning segment, so Token Count for these rows is effectively capped at the generation limit rather than reflecting a completed thought. This is intentional: these cases are exactly the repetition loops Task 1 identified (table~\ref{tab:deepseek-repetition}), and dropping them would hide, rather than explain, the heavy right tail in Token Count. We keep them in the Token Count analysis and flag wherever they drive a result (see finding~\ref{item:rq2-finding-tokencount-difficulty} in Results).
+
+\begin{table}[H]
+\centering
+\footnotesize
+\caption{Token Count: definition and computation summary.}
+\label{tab:rq2-feature-tokencount-summary}
+\begin{tabular}{p{0.22\textwidth}p{0.7\textwidth}}
+\toprule
+Property & Detail \\
+\midrule
+Unit & Tokens (model's own tokenizer) \\
+Scope & Reasoning segment only, i.e.\ text before \texttt{</think>} \\
+Range & Non-negative integer, long right tail (observed 103--4166) \\
+Truncated traces & Treated as reasoning segment in full; capped at the 4096-token generation limit \\
+Hypothesis & Increases with difficulty; should not correlate with worse correctness \\
+Test & Spearman's rank correlation vs.\ difficulty and vs.\ 32 per-question performance submetrics \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Feature 2: Information Retention}
+\label{sec:rq2-feature-retention}
+
+\textbf{Definition.} Information Retention is the share of schema-shaped identifiers mentioned in a reasoning trace that actually exist as a table or column name in that question's schema. Equivalently, $1 - $ Information Retention is the hallucination rate of the trace: the fraction of mentioned identifiers that are not grounded in the prompt.
+
+\textbf{Why it's relevant.} We expect reasoning traces with low Information Retention (frequent hallucination of schema elements) to produce lower-performing answers than traces that stay grounded in the given schema, since inventing a table or column that doesn't exist is very likely to propagate into an incorrect query. We also expect harder problems to not cause lower Information Retention on their own; if they do, this points to the model introducing more assumptions as questions get harder, which is itself worth investigating as a bias rather than attributing the accuracy drop to difficulty alone.
+
+\textbf{How we computed it.} We regex-extract every schema-shaped identifier the trace mentions, either quoted (e.g.\ \texttt{"Singer\_ID"}) or underscore-joined (e.g.\ \texttt{concert\_id}), and take the share of those identifiers that match a table or column name in that question's schema. An identifier that matches neither is treated as a fact the model introduced on its own, i.e., a hallucination. Traces that mention no schema identifiers at all are excluded from Information Retention (but kept for Token Count), since a 0-of-0 ratio is undefined rather than evidence of perfect or zero retention; this drops the usable sample from 1034 to 1017. Truncated traces are scored the same way, over whatever partial text was generated.
+
+\begin{table}[H]
+\centering
+\footnotesize
+\caption{Information Retention: definition and computation summary.}
+\label{tab:rq2-feature-retention-summary}
+\begin{tabular}{p{0.22\textwidth}p{0.7\textwidth}}
+\toprule
+Property & Detail \\
+\midrule
+Unit & Ratio, bounded in $[0,1]$ \\
+Numerator & Schema identifiers mentioned in the trace that match a real table/column name \\
+Denominator & All schema-shaped identifiers mentioned in the trace (quoted or underscore-joined) \\
+Exclusions & Traces mentioning zero schema identifiers (1034 $\rightarrow$ 1017 usable rows) \\
+Truncated traces & Scored over the partial text generated before truncation \\
+Hypothesis & Higher retention associates with better correctness; should not fall with difficulty \\
+Test & Spearman's rank correlation vs.\ difficulty and vs.\ 32 per-question performance submetrics \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Statistical approach}
+\label{sec:rq2-statistical-approach}
+
+We relate both Token Count and Information Retention to correctness and difficulty with Spearman's Rank Correlation throughout. Both of our hypotheses are about monotonic relationships, not linear relationships (performance should not decrease as Token Count or Information Retention increase, and Token Count should increase with difficulty), which is exactly what Spearman's Rank Correlation tests for. It also suits the distribution of our two reasoning metrics: Token Count is a non-negative count with a long right tail (DeepSeek alone ranges from 611 tokens on easy problems to 1177 on extra, table~\ref{tab:tokens-per-example}), and Information Retention is a bounded ratio, so neither is likely to be symmetric and unbounded; the $\geq$90\% trace completion rate gives us enough data per stratum to check this on histograms rather than assume it. For correctness, we correlate each reasoning metric against the continuous, per-question component matching accuracy, recall, and F1 for all ten Spider components individually, plus exact matching and execution accuracy, rather than collapsing them into one pass/fail label, which keeps the per-question variance in performance a binary cutoff would discard and sidesteps splitting by correctness directly, which is not viable per difficulty level: DeepSeek's exact matching accuracy falls to at most 0.034 on hard and extra problems, leaving as few as four to six correct traces in those strata. This gives 32 submetrics per reasoning metric per difficulty level. With 169 correlation tests run in total, we correct for multiple comparisons with the Benjamini-Hochberg procedure rather than a stricter family-wise correction like Bonferroni: we are screening many related, non-independent submetrics for the strongest associations to report and discuss, not making a small number of pre-registered confirmatory claims, so controlling the expected false-discovery rate is a better fit than controlling the probability of any single false positive at the cost of statistical power.
+
+The Results below report Token Count and Information Retention broken down two ways: by difficulty, since that is the primary hypothesis under test, and by exact-match correctness (correct/incorrect), used for the descriptive statistics and the boxplots (figure~\ref{fig:rq2-boxplots}) because a binary split is easier to read in a table or figure than 32 continuous submetrics. The correlation analysis itself (table~\ref{tab:rq2-correlations}) still uses the continuous submetrics described above, for the statistical-power reasons given there; the binary-correctness view and the continuous-submetric view are two presentations of the same underlying data, not two different analyses.
+
+\textbf{Verification.} To check that the Spearman findings above are not artifacts of an unmodeled confound, we verify them with regression, reported in \ref{sec:rq2-robustness}. Token Count, Information Retention and difficulty are all correlated with one another, so a bivariate relationship between one feature and an outcome could simply be riding on the other two variables rather than reflecting an independent association. We fit two regression models to check this: a logistic regression of exact-match correctness on standardized log Token Count, standardized Information Retention, and standardized difficulty, all entered jointly; and a proportional-odds (ordinal) regression of difficulty on standardized log Token Count and standardized Information Retention, entered jointly. Token Count is log-transformed before standardizing given its heavy right skew (see above); difficulty enters the logistic model as a single linear control on the log-odds scale, which is a simplification rather than a full categorical treatment.
+
+We then check the two regression models' own assumptions, reported in \ref{sec:rq2-diagnostics}: the logistic regression's three predictors need to not be too collinear for its coefficients to be trustworthy, which we check with variance inflation factors; and the ordinal regression assumes a single, constant effect of each predictor across all three difficulty cutoffs (the proportional-odds assumption), which we check by comparing its pooled coefficients against three separately-fit cumulative-logit models, one per cutoff --- large, systematic drift across cutoffs would be evidence against the assumption. Both regression models and these diagnostics are implemented in \texttt{eval/evalpipeline/reasoning\_verification.py}, run on the same per-question table as the Spearman analysis.
+
+\section{Task 2 -- RQ2: Results}
+\label{sec:rq2-results}
+
+We compute Token Count and Information Retention for all 1034 generations in DeepSeek-R1-Distill-Qwen-1.5B's main Task 1 run, and correlate each against difficulty and against all 32 per-question performance submetrics as described in the Methodology. Table~\ref{tab:rq2-descriptive-stats-tokencount} and table~\ref{tab:rq2-descriptive-stats-retention} give descriptive statistics for each feature by difficulty and by exact-match correctness; figure~\ref{fig:rq2-boxplots} shows the resulting distributions; table~\ref{tab:rq2-correlations} lists the strongest correlations.
+
+\subsection{Descriptive statistics}
+\label{sec:rq2-descriptive-stats}
+
+\begin{table}[H]
+\centering
+\footnotesize
+\caption{Token Count descriptive statistics, by difficulty and by exact-match correctness (1 = exact match, 0 = not).}
+\label{tab:rq2-descriptive-stats-tokencount}
+\begin{tabular}{lcccccc}
+\toprule
+Group & n & mean & median & std & min & max \\
+\midrule
+easy & 248 & 542.3 & 329.0 & 845.2 & 103 & 4096 \\
+medium & 446 & 648.2 & 374.0 & 925.7 & 191 & 4166 \\
+hard & 174 & 939.2 & 425.0 & 1246.2 & 226 & 4096 \\
+extra & 166 & 901.6 & 434.5 & 1199.9 & 222 & 4096 \\
+\midrule
+exact match = 0 & 946 & 748.1 & 394.0 & 1065.6 & 103 & 4166 \\
+exact match = 1 & 88 & 329.3 & 314.5 & 97.7 & 195 & 849 \\
+\midrule
+all & 1034 & 712.4 & 383.0 & 1026.2 & 103 & 4166 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\footnotesize
+\caption{Information Retention descriptive statistics, by difficulty and by exact-match correctness (1 = exact match, 0 = not). Excludes traces that mention no schema identifiers (n drops from 1034 to 1017 overall).}
+\label{tab:rq2-descriptive-stats-retention}
+\begin{tabular}{lcccccc}
+\toprule
+Group & n & mean & median & std & min & max \\
+\midrule
+easy & 246 & 0.915 & 1.0 & 0.146 & 0.0 & 1.0 \\
+medium & 441 & 0.905 & 1.0 & 0.148 & 0.0 & 1.0 \\
+hard & 172 & 0.877 & 1.0 & 0.163 & 0.0 & 1.0 \\
+extra & 158 & 0.861 & 1.0 & 0.215 & 0.0 & 1.0 \\
+\midrule
+exact match = 0 & 931 & 0.893 & 1.0 & 0.166 & 0.0 & 1.0 \\
+exact match = 1 & 86 & 0.924 & 1.0 & 0.123 & 0.5 & 1.0 \\
+\midrule
+all & 1017 & 0.896 & 1.0 & 0.163 & 0.0 & 1.0 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.55\textwidth]{boxplots.png}
+\caption{Token Count and Information Retention by difficulty and by exact-match correctness, for DeepSeek-R1-Distill-Qwen-1.5B's 1034 Task 1 generations. Green triangles are means, orange lines are medians. Means sit well above medians throughout, confirming the right-skewed, bounded distributions the Methodology assumes rather than normal ones.}
+\label{fig:rq2-boxplots}
+\end{figure}
+
+\subsection{Differences by correctness}
+\label{sec:rq2-by-correctness}
+
+Correct generations (exact match = 1) have a much lower mean and tighter spread of Token Count (329.3, std 97.7) than incorrect ones (748.1, std 1065.6, table~\ref{tab:rq2-descriptive-stats-tokencount}), and a slightly higher mean Information Retention (0.924 vs.\ 0.893, table~\ref{tab:rq2-descriptive-stats-retention}). Both differences point the same direction as the correlation findings in \ref{sec:rq2-relationship-correctness}: more reasoning tokens and lower retention associate with worse performance. The gap is far larger for Token Count than for Information Retention: incorrect generations' Token Count std (1065.6) is more than ten times that of correct generations (97.7), driven by the truncated, repetition-loop traces described in \ref{sec:rq2-feature-tokencount}, almost none of which are exact matches. Information Retention's median is 1.0 in both correctness groups, so the correctness gap in retention lives entirely in the mean and the lower tail, not in a shift of the typical trace.
+
+\subsection{Differences by difficulty}
+\label{sec:rq2-by-difficulty}
+
+\begin{enumerate}
+\item \label{item:rq2-finding-tokencount-difficulty} \textbf{Token Count increases with difficulty, as hypothesized, but the increase is driven by a heavy tail.} Median token count rises from 329 (easy) to 374 (medium) to 425 (hard) to 434 (extra), and the correlation with difficulty is positive and significant ($\rho=0.313$, $q<0.001$). The mean rises faster than the median at every level (for example 542 vs.\ 329 on easy), because generations hitting the 4096-token limit occur at every difficulty (figure~\ref{fig:rq2-boxplots}, top row); these are the same repetition loops Task 1 identified, not productive extra reasoning on harder problems.
+\item \label{item:rq2-finding-retention-difficulty} \textbf{Information Retention decreases slightly with difficulty.} Median retention is 1.0 at every difficulty level, but the mean falls from 0.915 (easy) to 0.861 (extra), and the correlation with difficulty is negative and significant ($\rho=-0.107$, $q=0.013$). This is the case flagged in \ref{sec:rq2-feature-retention} as calling for closer examination of the model's introduced assumptions on harder problems.
+\end{enumerate}
+
+\subsection{Relationship with Text-to-SQL correctness}
+\label{sec:rq2-relationship-correctness}
+
+\begin{enumerate}
+\item \label{item:rq2-finding-tokencount-disobey} \textbf{On easy and medium problems, more Token Count tracks worse performance, the ``disobeying'' case flagged in the Methodology.} Token Count correlates negatively with \texttt{keywords} F1 on easy ($\rho=-0.42$, $q<0.001$) and medium ($\rho=-0.19$, $q<0.001$) problems, and with \texttt{where} and \texttt{where(no OP)} F1 on easy problems ($\rho=-0.32$ and $-0.33$, $q<0.001$). Combined with finding~\ref{item:rq2-finding-tokencount-difficulty}, the extra tokens on these problems look like run-away generation rather than helpful deliberation.
+\item \label{item:rq2-finding-retention-performance} \textbf{Where Information Retention does relate to performance, it is positive, as hypothesized.} On medium problems, Information Retention correlates positively with \texttt{where} and \texttt{where(no OP)} F1 ($\rho=0.345$, $q<0.001$ for both), consistent with higher-retention traces producing more accurate WHERE clauses. Of the 169 tests run, 26 remain significant after Benjamini-Hochberg correction; the strongest are in table~\ref{tab:rq2-correlations}.
+\end{enumerate}
+
+\begin{table}[H]
+\centering
+\footnotesize
+\caption{Strongest Spearman correlations between reasoning metrics and performance submetrics, Benjamini-Hochberg corrected, top 8 of 169 tests by q-value.}
+\label{tab:rq2-correlations}
+\begin{tabular}{llcccc}
+\toprule
+Metric & Submetric & Difficulty & n & $\rho$ & $q$ \\
+\midrule
+Token Count & difficulty (overall) & all & 1034 & 0.313 & $<$0.001 \\
+Information Retention & \texttt{where} F1 & medium & 441 & 0.345 & $<$0.001 \\
+Information Retention & \texttt{where(no OP)} F1 & medium & 441 & 0.345 & $<$0.001 \\
+Token Count & \texttt{keywords} F1 & easy & 248 & -0.417 & $<$0.001 \\
+Token Count & \texttt{where(no OP)} F1 & easy & 248 & -0.332 & $<$0.001 \\
+Token Count & \texttt{where} F1 & easy & 248 & -0.322 & $<$0.001 \\
+Token Count & \texttt{keywords} F1 & medium & 446 & -0.194 & $<$0.001 \\
+Information Retention & difficulty (overall) & all & 1017 & -0.107 & 0.013 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Verification: regression controlling for confounds}
+\label{sec:rq2-robustness}
+
+\begin{table}[H]
+\centering
+\footnotesize
+\caption{Logistic regression: exact match on standardized log Token Count, standardized Information Retention, and standardized difficulty, fit jointly ($n=1017$, pseudo $R^2=0.188$). OR is the odds ratio per one-SD increase in the predictor.}
+\label{tab:rq2-logistic}
+\begin{tabular}{lccccc}
+\toprule
+Predictor & coef & SE & $z$ & $p$ & OR [95\% CI] \\
+\midrule
+Intercept & -3.351 & 0.227 & -14.76 & $<$0.001 & 0.035 [0.022, 0.055] \\
+log Token Count ($z$) & -1.087 & 0.300 & -3.62 & $<$0.001 & 0.337 [0.187, 0.607] \\
+Information Retention ($z$) & 0.091 & 0.139 & 0.65 & 0.514 & 1.095 [0.834, 1.437] \\
+Difficulty ($z$) & -1.278 & 0.201 & -6.35 & $<$0.001 & 0.279 [0.188, 0.413] \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\footnotesize
+\caption{Proportional-odds (ordinal) regression: difficulty on standardized log Token Count and standardized Information Retention, fit jointly ($n=1017$). OR is the odds ratio per one-SD increase in the predictor.}
+\label{tab:rq2-ordinal}
+\begin{tabular}{lccccc}
+\toprule
+Predictor & coef & SE & $z$ & $p$ & OR [95\% CI] \\
+\midrule
+log Token Count ($z$) & 0.398 & 0.059 & 6.78 & $<$0.001 & 1.489 [1.327, 1.670] \\
+Information Retention ($z$) & -0.177 & 0.059 & -2.99 & 0.003 & 0.837 [0.746, 0.941] \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Controlling for the other feature and for difficulty changes which bivariate relationship survives. Token Count's association with correctness holds up: each one-SD increase in log Token Count is associated with 66\% lower odds of an exact match (OR$=0.337$, $p<0.001$), holding Information Retention and difficulty fixed (table~\ref{tab:rq2-logistic}) --- consistent with, and strengthening, finding~\ref{item:rq2-finding-tokencount-disobey}. Information Retention's association with correctness does not survive the same control (OR$=1.095$, $p=0.514$): once Token Count and difficulty are accounted for, Retention has no detectable independent effect on correctness, so the positive finding in \ref{item:rq2-finding-retention-performance} should be read as a submetric-specific, not a global, relationship. Both features' difficulty relationships, in contrast, are independent of one another: the ordinal regression finds Token Count still predicts higher difficulty (OR$=1.489$ per SD, $p<0.001$) and Information Retention still predicts lower difficulty (OR$=0.837$ per SD, $p=0.003$) when controlling for each other (table~\ref{tab:rq2-ordinal}), so neither difficulty trend in \ref{sec:rq2-by-difficulty} is simply a byproduct of the other feature's trend.
+
+\subsection{Regression diagnostics}
+\label{sec:rq2-diagnostics}
+
+\begin{table}[H]
+\centering
+\footnotesize
+\caption{Variance inflation factors for the three predictors in the logistic regression (table~\ref{tab:rq2-logistic}).}
+\label{tab:rq2-vif}
+\begin{tabular}{lc}
+\toprule
+Predictor & VIF \\
+\midrule
+log Token Count ($z$) & 1.057 \\
+Information Retention ($z$) & 1.020 \\
+Difficulty ($z$) & 1.059 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\footnotesize
+\caption{Proportional-odds check: the pooled ordinal-regression coefficient (table~\ref{tab:rq2-ordinal}) against three separately-fit cumulative-logit models, one per difficulty cutoff. Large, systematic drift across cutoffs would indicate the proportional-odds assumption does not hold.}
+\label{tab:rq2-po-check}
+\begin{tabular}{lcccc}
+\toprule
+Cutoff & coef (Token Count) & SE & coef (Retention) & SE \\
+\midrule
+pooled (proportional-odds) & 0.398 & 0.059 & -0.177 & 0.059 \\
+$P(\text{difficulty} \geq \text{medium})$ & 0.576 & 0.117 & -0.128 & 0.081 \\
+$P(\text{difficulty} \geq \text{hard})$ & 0.396 & 0.066 & -0.195 & 0.067 \\
+$P(\text{difficulty} \geq \text{extra})$ & 0.271 & 0.074 & -0.193 & 0.078 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The three predictors in the logistic regression are not meaningfully collinear (all VIF $\approx 1.0$--$1.06$, well below the common rule-of-thumb threshold of 5, table~\ref{tab:rq2-vif}), so the coefficient estimates and significance levels reported in \ref{sec:rq2-robustness} are not an artifact of Token Count, Information Retention and difficulty standing in for one another. The proportional-odds check is more mixed. Information Retention's cumulative-logit coefficient is stable across all three cutoffs ($-0.128$, $-0.195$, $-0.193$, table~\ref{tab:rq2-po-check}), consistent with the pooled $-0.177$ and with the proportional-odds assumption holding for this feature. Token Count's coefficient, however, declines monotonically across cutoffs (0.576 at the easy/medium boundary, down to 0.271 at the hard/extra boundary): Token Count distinguishes difficulty levels well at the low end but loses discriminative power at the high end, a mild violation of the proportional-odds assumption that the single pooled coefficient in table~\ref{tab:rq2-ordinal} averages over. This does not overturn the ordinal regression's conclusion that Token Count predicts difficulty (every individual cutoff coefficient is still positive and more than 3 standard errors from zero), but it means the pooled OR$=1.489$ should be read as an average effect across difficulty levels rather than a uniform one.

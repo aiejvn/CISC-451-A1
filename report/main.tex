@@ -1,0 +1,280 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=0.85in]{geometry}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{graphicx}
+\usepackage{longtable}
+\usepackage{pdflscape}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{enumitem}
+\usepackage{float}
+\usepackage{caption}
+\usepackage[hidelinks]{hyperref}
+
+\captionsetup{font=small, labelfont=bf}
+\setlist[itemize]{topsep=2pt, itemsep=2pt}
+\setlist[enumerate]{topsep=2pt, itemsep=2pt}
+
+\title{CISC 451 --- A1: Cross-Domain Text-to-SQL}
+\author{Kevin Wang}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+See \texttt{README.md} for repo setup, and \texttt{RQ1\_RQ2\_RQ3.ipynb} for an executable
+notebook that reproduces every table and figure below from a live run.
+
+\input{RQ1}
+\input{RQ2}
+\input{RQ3}
+
+\section*{Task 4:}
+
+Generative AI tools were used in this assignment in a supporting capacity, with all substantive judgment and final work remaining my own. Claude was used to architect the scaffolding for the experiment runners and the Jupyter notebook, and I verified this code by running it, sampling its outputs, and manually checking them for correctness. I frequently had to fill in what the AI left incomplete, such as managing GPU memory and compute at runtime, and to correct experiment setup scripts that were set up incorrectly. I manually reviewed all output data and results and handwrote the first draft of the report myself. I then improved the report over several iterations, combining my own judgment with feedback from ChatGPT review agents.
+
+\section*{References}
+
+\begin{enumerate}[leftmargin=2.2em, label={[\arabic*]}]
+\item Tao Yu, Rui Zhang, Kai Yang, Michihiro Yasunaga, Dongxu Wang, Zifan Li, James Ma, Irene Li, Qingning Yao, Shanelle Roman, Zilin Zhang, and Dragomir Radev. 2018. Spider: A Large-Scale Human-Labeled Dataset for Complex and Cross-Domain Semantic Parsing and Text-to-SQL Task. In Proceedings of the 2018 Conference on Empirical Methods in Natural Language Processing (EMNLP), pages 3911-3921, Brussels, Belgium. \url{https://aclanthology.org/D18-1425/} (arXiv:1809.08887)
+\setcounter{enumi}{1}
+\item Qwen Team. 2025. Qwen3 Technical Report. arXiv:2505.09388. \url{https://arxiv.org/abs/2505.09388}
+\setcounter{enumi}{3}
+\item DeepSeek-AI. 2025. DeepSeek-R1: Incentivizing Reasoning Capability in LLMs via Reinforcement Learning. arXiv:2501.12948. \url{https://arxiv.org/abs/2501.12948}
+\item SPFT-SQL: Enhancing Large Language Model for Text-to-SQL Parsing by Self-Play Fine-Tuning. 2025. arXiv:2509.03937. \url{https://arxiv.org/abs/2509.03937}
+\item FINER-SQL: Boosting Small Language Models for Text-to-SQL. 2026. arXiv:2605.03465. \url{https://arxiv.org/abs/2605.03465}
+\item Enhancing LLM Fine-tuning for Text-to-SQLs by SQL Quality Measurement. 2024. arXiv:2410.01869. \url{https://arxiv.org/abs/2410.01869} [todo: add authors for [5]-[7]]
+\item Zixiang Chen, Yihe Deng, Huizhuo Yuan, Kaixuan Ji, and Quanquan Gu. 2024. Self-Play Fine-Tuning Converts Weak Language Models to Strong Language Models. arXiv:2401.01335. \url{https://arxiv.org/abs/2401.01335} [todo: verify authors and ID]
+\end{enumerate}
+
+\section*{Appendix 1: Worked Prompt Example (Task 1)}
+
+Referenced from 1.3 Prompting and Input Representation. One of the schemas used is:
+
+\begin{verbatim}
+CREATE TABLE "stadium" (
+  "Stadium_ID" NUMERIC, "Location" TEXT, "Name" TEXT, "Capacity" NUMERIC,
+  "Highest" NUMERIC, "Lowest" NUMERIC, "Average" NUMERIC,
+  PRIMARY KEY ("Stadium_ID")
+)
+
+CREATE TABLE "singer" (
+  "Singer_ID" NUMERIC, "Name" TEXT, "Country" TEXT, "Song_Name" TEXT,
+  "Song_release_year" TEXT, "Age" NUMERIC, "Is_male" TEXT,
+  PRIMARY KEY ("Singer_ID")
+)
+
+CREATE TABLE "concert" (
+  "concert_ID" NUMERIC, "concert_Name" TEXT, "Theme" TEXT, "Stadium_ID" TEXT, "Year" TEXT,
+  PRIMARY KEY ("concert_ID"),
+  FOREIGN KEY ("Stadium_ID") REFERENCES "stadium"("Stadium_ID")
+)
+
+CREATE TABLE "singer_in_concert" (
+  "concert_ID" NUMERIC, "Singer_ID" TEXT,
+  PRIMARY KEY ("concert_ID"),
+  FOREIGN KEY ("concert_ID") REFERENCES "concert"("concert_ID"),
+  FOREIGN KEY ("Singer_ID") REFERENCES "singer"("Singer_ID")
+)
+\end{verbatim}
+
+we could ask the question:
+\begin{verbatim}
+How many singers do we have?
+\end{verbatim}
+
+to form a prompt like:
+
+\begin{verbatim}
+Given the following SQLite database schema, write a SQL query that answers
+the question.
+
+CREATE TABLE "stadium" (
+  "Stadium_ID" NUMERIC, "Location" TEXT, "Name" TEXT, "Capacity" NUMERIC,
+  "Highest" NUMERIC, "Lowest" NUMERIC, "Average" NUMERIC,
+  PRIMARY KEY ("Stadium_ID")
+)
+
+CREATE TABLE "singer" (
+  "Singer_ID" NUMERIC, "Name" TEXT, "Country" TEXT, "Song_Name" TEXT,
+  "Song_release_year" TEXT, "Age" NUMERIC, "Is_male" TEXT,
+  PRIMARY KEY ("Singer_ID")
+)
+
+CREATE TABLE "concert" (
+  "concert_ID" NUMERIC, "concert_Name" TEXT, "Theme" TEXT, "Stadium_ID" TEXT, "Year" TEXT,
+  PRIMARY KEY ("concert_ID"),
+  FOREIGN KEY ("Stadium_ID") REFERENCES "stadium"("Stadium_ID")
+)
+
+CREATE TABLE "singer_in_concert" (
+  "concert_ID" NUMERIC, "Singer_ID" TEXT,
+  PRIMARY KEY ("concert_ID"),
+  FOREIGN KEY ("concert_ID") REFERENCES "concert"("concert_ID"),
+  FOREIGN KEY ("Singer_ID") REFERENCES "singer"("Singer_ID")
+)
+
+Question: How many singers do we have?
+
+Respond with only the SQL query in a ```sql code block.
+\end{verbatim}
+
+\section*{Appendix 2: Performance by Database (Task 1)}
+
+Referenced from 2.3 Performance by Database. Tables 5 and 6 report execution and exact matching accuracy on each of the 20 Spider dev databases, all of which are unseen by the models.
+
+\begin{table}[H]
+\centering
+\footnotesize
+\caption{Table 5: Execution accuracy by database (domain).}
+\begin{tabular}{lcccc}
+\toprule
+Database & Problems (n) & Qwen3-0.6B & Qwen3-4B & DeepSeek-R1-Distill-Qwen-1.5B \\
+\midrule
+world\_1 & 120 & 0.183 & 0.242 & 0.108 \\
+car\_1 & 92 & 0.109 & 0.315 & 0.054 \\
+cre\_Doc\_Template\_Mgt & 84 & 0.202 & 0.405 & 0.071 \\
+dog\_kennels & 82 & 0.159 & 0.293 & 0.085 \\
+flight\_2 & 80 & 0.263 & 0.500 & 0.250 \\
+student\_transcripts\_tracking & 78 & 0.128 & 0.321 & 0.064 \\
+wta\_1 & 62 & 0.161 & 0.290 & 0.129 \\
+tvshow & 62 & 0.339 & 0.435 & 0.129 \\
+network\_1 & 56 & 0.286 & 0.375 & 0.179 \\
+concert\_singer & 45 & 0.111 & 0.289 & 0.000 \\
+pets\_1 & 42 & 0.167 & 0.286 & 0.071 \\
+poker\_player & 40 & 0.250 & 0.550 & 0.225 \\
+orchestra & 40 & 0.350 & 0.250 & 0.100 \\
+employee\_hire\_evaluation & 38 & 0.105 & 0.211 & 0.132 \\
+course\_teach & 30 & 0.100 & 0.500 & 0.100 \\
+singer & 30 & 0.533 & 0.600 & 0.267 \\
+museum\_visit & 18 & 0.278 & 0.500 & 0.222 \\
+battle\_death & 16 & 0.375 & 0.188 & 0.188 \\
+voter\_1 & 15 & 0.267 & 0.400 & 0.267 \\
+real\_estate\_properties & 4 & 0.500 & 0.500 & 0.000 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\footnotesize
+\caption{Table 6: Exact matching accuracy by database (domain).}
+\begin{tabular}{lcccc}
+\toprule
+Database & Problems (n) & Qwen3-0.6B & Qwen3-4B & DeepSeek-R1-Distill-Qwen-1.5B \\
+\midrule
+world\_1 & 120 & 0.067 & 0.142 & 0.025 \\
+car\_1 & 92 & 0.043 & 0.152 & 0.033 \\
+cre\_Doc\_Template\_Mgt & 84 & 0.071 & 0.238 & 0.071 \\
+dog\_kennels & 82 & 0.085 & 0.244 & 0.061 \\
+flight\_2 & 80 & 0.075 & 0.350 & 0.200 \\
+student\_transcripts\_tracking & 78 & 0.090 & 0.269 & 0.064 \\
+wta\_1 & 62 & 0.065 & 0.177 & 0.129 \\
+tvshow & 62 & 0.226 & 0.339 & 0.097 \\
+network\_1 & 56 & 0.125 & 0.214 & 0.179 \\
+concert\_singer & 45 & 0.022 & 0.178 & 0.000 \\
+pets\_1 & 42 & 0.000 & 0.095 & 0.024 \\
+poker\_player & 40 & 0.175 & 0.550 & 0.100 \\
+orchestra & 40 & 0.225 & 0.225 & 0.100 \\
+employee\_hire\_evaluation & 38 & 0.105 & 0.158 & 0.105 \\
+course\_teach & 30 & 0.033 & 0.500 & 0.067 \\
+singer & 30 & 0.333 & 0.600 & 0.167 \\
+museum\_visit & 18 & 0.056 & 0.500 & 0.111 \\
+battle\_death & 16 & 0.250 & 0.188 & 0.062 \\
+voter\_1 & 15 & 0.133 & 0.400 & 0.200 \\
+real\_estate\_properties & 4 & 0.000 & 0.250 & 0.000 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Execution accuracy ranges from 0.10 (course\_teach) to 0.53 (singer) for Qwen3-0.6B, from 0.19 (battle\_death) to 0.60 (singer) for Qwen3-4B, and from 0.00 (concert\_singer) to 0.27 (singer and voter\_1) for DeepSeek-R1-Distill-Qwen-1.5B. One model now wins or ties almost everywhere: Qwen3-4B has the highest execution accuracy on 17 of the 20 databases outright and ties for highest on a further 1 (real\_estate\_properties, n=4), Qwen3-0.6B is highest on the remaining 2 (orchestra and battle\_death), and DeepSeek-R1-Distill-Qwen-1.5B is highest on none. The pattern on exact matching accuracy (table 6) is just as one-sided: Qwen3-4B is highest on 18 of 20 databases, ties Qwen3-0.6B on orchestra, and loses only on battle\_death; DeepSeek's exact matching accuracy is never the highest of the three, including on flight\_2, where it comes closest (0.200 vs.\ Qwen3-4B's 0.350 and Qwen3-0.6B's 0.075). Databases with few problems (real\_estate\_properties with n=4, voter\_1 with n=15, battle\_death with n=16, and museum\_visit with n=18) are too small to rank the models reliably, since a single problem changes a score by 6 to 25 percentage points; battle\_death (n=16) is one of these. Orchestra (n=40), the other database where Qwen3-4B does not lead outright, is not small in this sense, so Qwen3-0.6B's win there looks like a genuine exception rather than noise.
+
+\section*{Appendix 3: Invalid and Unparseable Outputs (Task 1)}
+
+Referenced from 2.4 Invalid and Unparseable Outputs. We count how often each model's output cannot be used as SQL at all: it either never produces a usable query within the token budget (1.5) or is truncated before finishing one. Per 1.6, these count as failures on every metric rather than being excluded. This is a direct measure of how reliably each model follows the ``respond with only a SQL query'' instruction, independent of whether the SQL it does produce is correct.
+
+\begin{table}[H]
+\centering
+\footnotesize
+\caption{Table 7: Invalid or unfinished outputs per model, out of 1034 generations each (Qwen3-4B: out of 1017, see note below). An output is invalid if it is truncated at the model's max-output-length (1.5) or finishes without at least 3 words of usable text.}
+\begin{tabular}{lcc}
+\toprule
+Model & Invalid outputs & Invalid rate \\
+\midrule
+Qwen3-0.6B & 23 & 2.2\% \\
+Qwen3-4B & 0 & 0.0\% \\
+DeepSeek-R1-Distill-Qwen-1.5B & 100 & 9.7\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+DeepSeek's invalid rate is about 4x higher than Qwen3-0.6B's and does not have a comparably-sized denominator for Qwen3-4B, which produced zero invalid outputs in this run despite having the same 4096-token budget (1.5) -- i.e.\ a larger token budget did not cause it to run on or produce unusable output the way it does for DeepSeek. 2.6 breaks DeepSeek's failures down further by difficulty and by why the generation failed (Tables 10-13).
+
+\section*{Appendix 4: PlanPlay-SQL Prompt and Plan Rendering (Task 3)}
+\label{sec:appendix4}
+
+Referenced from Section~\ref{sec:rq3-evaluation} (Evaluation Setup). PlanPlay-SQL's prompt extends Appendix 1's baseline template with an explicit plan format, so the model writes a short plan (tables and joins, columns, filters, aggregation and ordering, \ref{sec:rq3-approach}) before the SQL. Using the same schema and question as Appendix 1, the prompt is:
+
+\begin{verbatim}
+Given the following SQLite database schema, write a SQL query that answers
+the question.
+
+CREATE TABLE "stadium" (
+  "Stadium_ID" NUMERIC, "Location" TEXT, "Name" TEXT, "Capacity" NUMERIC,
+  "Highest" NUMERIC, "Lowest" NUMERIC, "Average" NUMERIC,
+  PRIMARY KEY ("Stadium_ID")
+)
+
+CREATE TABLE "singer" (
+  "Singer_ID" NUMERIC, "Name" TEXT, "Country" TEXT, "Song_Name" TEXT,
+  "Song_release_year" TEXT, "Age" NUMERIC, "Is_male" TEXT,
+  PRIMARY KEY ("Singer_ID")
+)
+
+CREATE TABLE "concert" (
+  "concert_ID" NUMERIC, "concert_Name" TEXT, "Theme" TEXT, "Stadium_ID" TEXT, "Year" TEXT,
+  PRIMARY KEY ("concert_ID"),
+  FOREIGN KEY ("Stadium_ID") REFERENCES "stadium"("Stadium_ID")
+)
+
+CREATE TABLE "singer_in_concert" (
+  "concert_ID" NUMERIC, "Singer_ID" TEXT,
+  PRIMARY KEY ("concert_ID"),
+  FOREIGN KEY ("concert_ID") REFERENCES "concert"("concert_ID"),
+  FOREIGN KEY ("Singer_ID") REFERENCES "singer"("Singer_ID")
+)
+
+Question: How many singers do we have?
+
+First write a short plan using exactly these lines:
+Plan:
+- tables: ...
+- join: ...
+- select: ...
+- filter: ...
+- group/order: ...
+Then write the SQL query in a ```sql code block.
+\end{verbatim}
+
+This same template builds both the inference-time prompt (every PlanPlay-SQL row in Table~\ref{tab:rq3-dev-results-06b} is evaluated with it) and the input half of each warm-start training example, since warm start (\ref{sec:rq3-training}) trains the model to reproduce this plan-then-SQL format.
+
+The warm-start training target pairs this prompt with a plan rendered automatically from the gold SQL by a rule-based parser (\ref{sec:rq3-training}): the parser splits the query into its top-level clauses (\texttt{FROM}/\texttt{JOIN}, \texttt{SELECT}, \texttt{WHERE}, \texttt{GROUP BY}/\texttt{ORDER BY}/\texttt{LIMIT}, and any set operator), resolves table aliases in the \texttt{FROM}/\texttt{JOIN} clause, and renders each field into the fixed five-line format (a field with nothing to report renders as \texttt{none}; a query with \texttt{INTERSECT}/\texttt{UNION}/\texttt{EXCEPT} renders its first half normally and appends ``then \texttt{<op>} with a second query'' instead of parsing the second half). For the gold query \texttt{SELECT count(*) FROM singer}, the parser produces, and the model is trained to reproduce:
+
+\begin{verbatim}
+Plan:
+- tables: singer
+- join: none
+- select: count(*)
+- filter: none
+- group/order: none
+```sql
+SELECT count(*) FROM singer
+```
+\end{verbatim}
+
+\end{document}

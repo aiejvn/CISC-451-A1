@@ -7,7 +7,7 @@
 \subsection{Models}
 \label{sec:models}
 
-We compare two decoder-only LLMs from the same model family at different scales (Qwen3-0.6B and Qwen3-4B) against one reasoning LLM, so that the comparison isolates the effect of scale within a fixed family from the effect of an explicit reasoning trace, as much as a 3-model study can. All three are accessed as local inference over their bf16 Huggingface checkpoints on 1x NVIDIA GeForce RTX 4090 GPU (no API-based models), so that inference parameters are fully under our control (see \ref{sec:inference-settings}). We evaluate using batch sizes of 1.
+We compare two decoder-only LLMs from the same model family at different scales (Qwen3-0.6B and Qwen3-4B) against one reasoning LLM, so that the comparison isolates the effect of scale within a fixed family from the effect of an explicit reasoning trace, as much as a 3-model study can. All three are accessed as local inference over their bf16 Huggingface checkpoints on 1x NVIDIA GeForce RTX 4090 GPU (no API-based models), so that inference parameters are fully under our control (see \ref{sec:inference-settings}).
 
 \begin{table}[H]
 \centering
@@ -19,9 +19,9 @@ We compare two decoder-only LLMs from the same model family at different scales 
 \toprule
 Model & Category & Parameters & Quantization & Access & Thinking mode \\
 \midrule
-Qwen3-0.6B [2] & Decoder-only & 0.6B & bf16 (none beyond release precision) & Local, Huggingface checkpoint & Disabled \\
-Qwen3-4B [2] & Decoder-only & 4B & bf16 (none beyond release precision) & Local, Huggingface checkpoint & Disabled \\
-DeepSeek-R1-Distill-Qwen-1.5B [4] & Reasoning & 1.5B & bf16 (none beyond release precision) & Local, Huggingface checkpoint & Always on (no disable option) \\
+Qwen3-0.6B (Qwen Team, 2025) & Decoder-only & 0.6B & bf16 (none beyond release precision) & Local, Huggingface checkpoint & Disabled \\
+Qwen3-4B (Qwen Team, 2025) & Decoder-only & 4B & bf16 (none beyond release precision) & Local, Huggingface checkpoint & Disabled \\
+DeepSeek-R1-Distill-Qwen-1.5B (DeepSeek-AI, 2025) & Reasoning & 1.5B & bf16 (none beyond release precision) & Local, Huggingface checkpoint & Always on (no disable option) \\
 \bottomrule
 \end{tabular}}
 \end{table}
@@ -31,14 +31,14 @@ All three are dense (non-MoE) models, so no distinction between total and active
 \subsection{Evaluation Data}
 \label{sec:eval-data}
 
-We use all 1034 examples in the Spider [1] development split, with no subsampling and therefore no sampling seed to report; every example is included, so the per-database counts below and the per-database results tables (\hyperref[tab:db-execution]{5} and \hyperref[tab:db-exact]{6}) enumerate exactly which examples are used. To evaluate cross-domain performance, we additionally report results separately for each of the 20 databases in the Spider dev set: world\_1 (120 problems), car\_1 (92), cre\_Doc\_Template\_Mgt (84), dog\_kennels (82), flight\_2 (80), student\_transcripts\_tracking (78), wta\_1 (62), tvshow (62), network\_1 (56), concert\_singer (45), pets\_1 (42), poker\_player (40), orchestra (40), employee\_hire\_evaluation (38), course\_teach (30), singer (30), museum\_visit (18), battle\_death (16), voter\_1 (15), and real\_estate\_properties (4).
+We use all 1034 examples in the Spider (Yu et al., 2018) development split, with no subsampling and therefore no sampling seed to report; every example is included, so the per-database counts below and the per-database results tables (\hyperref[tab:db-execution]{Table 5} and \hyperref[tab:db-exact]{Table 6}) enumerate exactly which examples are used. To evaluate cross-domain performance, we additionally report results separately for each of the 20 databases in the Spider dev set: world\_1 (120 problems), car\_1 (92), cre\_Doc\_Template\_Mgt (84), dog\_kennels (82), flight\_2 (80), student\_transcripts\_tracking (78), wta\_1 (62), tvshow (62), network\_1 (56), concert\_singer (45), pets\_1 (42), poker\_player (40), orchestra (40), employee\_hire\_evaluation (38), course\_teach (30), singer (30), museum\_visit (18), battle\_death (16), voter\_1 (15), and real\_estate\_properties (4).
 
-We also use the Spider Hardness Criteria, where queries are assigned difficulties based on the number of SQL components, selections, and conditions, so that queries that contain more SQL keywords are considered harder.
+We also use the Spider Hardness Criteria, where queries are assigned difficulties based on the number of SQL components, selections, and conditions, so that queries that contain more SQL keywords are considered harder (figure~\ref{fig:hardness-levels} shows an example of each level).
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.35\textwidth]{image.png}
-\caption{SQL query examples in 4 hardness levels. Credit: Spider [1]}
+\caption{SQL query examples in 4 hardness levels. Credit: Spider (Yu et al., 2018)}
 \label{fig:hardness-levels}
 \end{figure}
 
@@ -74,7 +74,7 @@ All models are evaluated using the same decoding configuration: greedy decoding 
 \subsection{Evaluation}
 \label{sec:evaluation-metrics}
 
-We evaluate the output using the same metrics as the Spider paper [1]. These are:
+We evaluate the output using the same metrics as the Spider paper (Yu et al., 2018). These are:
 
 \begin{enumerate}
 \item Component Matching
@@ -104,7 +104,7 @@ We evaluate the output using the same metrics as the Spider paper [1]. These are
     \end{itemize}
 \end{enumerate}
 
-If output is invalid or unparsable, then it fails all 3 dimensions (component matching, exact matching, execution accuracy), consistent with how \ref{sec:sql-extraction} extracts and passes SQL to this evaluation script. This is reasonable as invalid/unparsable output cannot be applied to SQL and thus must be avoided and penalized heavily; Results~\ref{sec:invalid-outputs} reports how often this happens for each model.
+If output is invalid or unparsable, then it fails all 3 dimensions (component matching, exact matching, execution accuracy), consistent with how \ref{sec:sql-extraction} extracts and passes SQL to this evaluation script. Results~\ref{sec:invalid-outputs} reports how often this happens for each model.
 
 \section{Task 1 -- RQ1: Results}
 \label{sec:rq1-results}
@@ -112,7 +112,7 @@ If output is invalid or unparsable, then it fails all 3 dimensions (component ma
 \subsection{Overall Model Performance}
 \label{sec:overall-performance}
 
-Below we report how Qwen3-0.6B, Qwen3-4B, and Deepseek-R1-Distill-Qwen3-1.5B perform on the Spider benchmark across all 3 metrics (Component Matching, Exact Matching Accuracy, Execution Accuracy). We calculate the values per problem difficulty as well as overall, and display them in the below tables.
+Below we report how Qwen3-0.6B, Qwen3-4B, and DeepSeek-R1-Distill-Qwen-1.5B perform on the Spider benchmark across all 3 metrics (Component Matching, Exact Matching Accuracy, Execution Accuracy). We calculate the values per problem difficulty as well as overall, and display them in the below tables.
 
 \begin{table}[H]
 \centering
@@ -200,9 +200,9 @@ DeepSeek-R1-Distill-Qwen-1.5B & 0.258 & 0.128 & 0.017 & 0.006 & 0.121 \\
 \end{tabular}
 \end{table}
 
-We break every metric down by the Spider Hardness Criteria (\ref{sec:eval-data}) as query difficulty is a first-order driver of Text-to-SQL performance; comparing models only in aggregate would hide whether a model's advantage holds up as queries get harder.
+We break every metric down by the Spider Hardness Criteria (\ref{sec:eval-data}), since aggregate numbers alone would hide whether a model's advantage holds up as queries get harder.
 
-Performance decreases with difficulty for every model, but the decrease is steepest for Qwen3-0.6B and DeepSeek: their exact matching and execution accuracy are both at most 0.034 and 0.126 respectively on hard and extra problems, down from as high as 0.210-0.258 (easy execution) on the easiest problems (table~\ref{tab:difficulty-exact} and table~\ref{tab:difficulty-execution}). Qwen3-4B degrades on the same relative scale but from a much higher starting point, from 0.508 easy exact matching / 0.565 easy execution accuracy down to 0.012 extra exact matching / 0.139 extra execution accuracy. Despite the degredation, it remains the best of the three models at every single difficulty level on both metrics (Tables~\ref{tab:difficulty-exact}--\ref{tab:difficulty-execution}).
+Performance decreases with difficulty for every model, but the decrease is steepest for Qwen3-0.6B and DeepSeek: their exact matching and execution accuracy are both at most 0.006 and 0.126 respectively on hard and extra problems, down from as high as 0.210-0.258 (easy execution) on the easiest problems (table~\ref{tab:difficulty-exact} and table~\ref{tab:difficulty-execution}). Qwen3-4B degrades on the same relative scale but from a much higher starting point, from 0.508 easy exact matching / 0.565 easy execution accuracy down to 0.012 extra exact matching / 0.139 extra execution accuracy. Despite the degradation, it remains the best of the three models at every single difficulty level on both metrics (Tables~\ref{tab:difficulty-exact}--\ref{tab:difficulty-execution}).
 
 \subsection{Performance by Database}
 \label{sec:by-database}
@@ -286,7 +286,7 @@ Share & 6.0\% & 7.4\% & 14.4\% & 16.3\% & 9.7\% \\
 \begin{table}[H]
 \centering
 \footnotesize
-\caption{Output tokens per example}
+\caption{Output tokens per example.}
 \label{tab:tokens-per-example}
 \begin{tabular}{lccccc}
 \toprule
@@ -320,7 +320,7 @@ DeepSeek-R1-Distill-Qwen-1.5B & 3059.8 & 2.959 \\
 DeepSeek is about 25x slower per example than Qwen3-0.6B and 28x slower than Qwen3-4B, consistent with its much higher average token count (table~\ref{tab:tokens-per-example}). Qwen3-4B, despite having about 7x as many parameters as Qwen3-0.6B, is marginally faster per example (0.106s vs.\ 0.120s), consistent with it generating fewer tokens on average (39.0 vs.\ 46.1, table~\ref{tab:tokens-per-example}) despite having the same 16x larger token budget as DeepSeek (\ref{sec:inference-settings}).
 
 
-\section{Interpretation and Answer to Research Question (RQ1)}
+\section{Task 1 -- RQ1: Interpretation and Answer}
 \label{sec:rq1-interpretation}
 
 \textbf{RQ1:} How do (selected) LLMs perform on cross-domain Text-to-SQL?
@@ -329,20 +329,36 @@ DeepSeek is about 25x slower per example than Qwen3-0.6B and 28x slower than Qwe
 
 All three models are still far from solving the task in this zero-shot setting: exact matching accuracy ranges from 0.085 to 0.256 and execution accuracy from 0.121 to 0.353 (table~\ref{tab:overall-performance}). Difficulty and database effects are discussed in \ref{sec:by-difficulty} and \ref{sec:by-database}; here we interpret the effects of model size and reasoning architecture and the exact-match/execution-accuracy relationship, and state the answer to RQ1 as three findings.
 
-\textbf{First, within the Qwen family, scale is a strong and almost uniform predictor of performance, but an intermediate-size reasoning model from the Deepseek family still loses to the smallest model in the Qwen family.} Aggregated across all difficulties, Qwen3-4B has the best component matching (0.797 / 0.306 / 0.442), exact matching (0.256), and execution accuracy (0.353) of the three (Table~\ref{tab:overall-performance}), and it beats Qwen3-0.6B on exact matching and execution accuracy at every individual difficulty level, including hard (0.115 vs.\ 0.006) and extra (0.012 vs.\ 0.006), where the smaller model solves almost nothing (Tables~\ref{tab:difficulty-exact}--\ref{tab:difficulty-execution}). This is the largest, most consistent effect in the RQ1 results. The one exception is component matching on extra-hard problems, where Qwen3-0.6B's accuracy, recall, and F1 (0.578 / 0.160 / 0.250) are all slightly higher than Qwen3-4B's (0.485 / 0.150 / 0.229), the only point in the RQ1 results where the smaller Qwen3 model wins outright (Table~\ref{tab:difficulty-component}). DeepSeek-R1-Distill-Qwen-1.5B sits between the two Qwen3 models in parameter count (1.5B) and is the only one that reasons, yet it is the lowest of the three on every aggregate metric (0.275 component F1, 0.085 exact matching, 0.121 execution accuracy) except its own component-matching accuracy (0.661 vs.\ 0.628 for Qwen3-0.6B). Thus, scale predicts performance well within a family, but does not transfer across the reasoning/non-reasoning boundary: having more parameters than Qwen3-0.6B did not help DeepSeek catch up to it.
+\subsection{First, within the Qwen family, scale is a strong and almost uniform predictor of performance, but an intermediate-size reasoning model from the DeepSeek family still loses to the smallest model in the Qwen family.}
+\label{sec:rq1-finding-scale}
 
-\textbf{Second, the reasoning architecture itself, not parameter count, is the main driver of DeepSeek's low score.} Its invalid-output rate (9.7\%) is markedly higher than Qwen3-0.6B's (2.2\%) and Qwen3-4B's (0.0\% in this run) (\ref{sec:invalid-outputs}). In Tables~\ref{tab:deepseek-outcome}--\ref{tab:deepseek-unfinished-by-difficulty}, 100 of 1034 generations (9.7\%) end without usable SQL. 85 never leave the reasoning phase, 13 are cut while writing the answer, and 2 finish without SQL. The number of unusable SQL generations also grows with difficulty, from 6.0\% on easy to 16.3\% on extra problems. These are not cases of long productive reasoning either: 95.9\% of the cut-off generations are highly self-repetitive (compression ratio below 0.15, median compression ratio 0.095, vs.\ 0.418 for finished generations), rewriting the same query and repeating phrases like ``So the final query is:'' without converging. Finishing does not make it better either: on the 934 questions DeepSeek does finish, its exact matching (0.094) and component F1 (0.286) are still below Qwen3-0.6B's on the same questions (0.103 / 0.317) and far below Qwen3-4B's (0.257 / 0.440), despite generating 512 tokens per question on average there, against 46 and 39 tokens overall for Qwen3-0.6B and Qwen3-4B (about 18x and 22x fewer). This extra length also costs time: DeepSeek is 25-28x slower per example than either Qwen3 model (\ref{sec:efficiency}). The reasoning trace mostly lengthens the output and sometimes never terminates, without improving the SQL when it does, and size alone is not the explanation, since Qwen3-4B is both bigger than DeepSeek and the best model in the comparison. Thus, reasoning architecture itself, not the parameter count, is the main driver of DeepSeek's low score.
+Aggregated across all difficulties, Qwen3-4B has the best component matching (0.797 / 0.306 / 0.442), exact matching (0.256), and execution accuracy (0.353) of the three (Table~\ref{tab:overall-performance}), and it beats Qwen3-0.6B on exact matching and execution accuracy at every individual difficulty level, including hard (0.115 vs.\ 0.006) and extra (0.012 vs.\ 0.006), where the smaller model solves almost nothing (Tables~\ref{tab:difficulty-exact}--\ref{tab:difficulty-execution}). This effect is large and holds at every difficulty level. The one exception is component matching on extra-hard problems, where Qwen3-0.6B's accuracy, recall, and F1 (0.578 / 0.160 / 0.250) are all slightly higher than Qwen3-4B's (0.485 / 0.150 / 0.229), the only point in the RQ1 results where the smaller Qwen3 model wins outright (Table~\ref{tab:difficulty-component}). DeepSeek-R1-Distill-Qwen-1.5B sits between the two Qwen3 models in parameter count (1.5B) and is the only one that reasons, yet it is the lowest of the three on every aggregate metric (0.275 component F1, 0.085 exact matching, 0.121 execution accuracy) except its own component-matching accuracy (0.661 vs.\ 0.628 for Qwen3-0.6B). Thus, scale predicts performance well within a family, but does not transfer across the reasoning/non-reasoning boundary: having more parameters than Qwen3-0.6B did not help DeepSeek catch up to it.
 
-\textbf{Third, query difficulty has a substantial, consistent effect on every model, including the best one.} Exact matching and execution accuracy both fall sharply from easy to extra-hard problems for all three models (\ref{sec:by-difficulty}). Qwen3-4B's drop is from a much higher base (0.508 to 0.012 exact matching, 0.565 to 0.139 execution accuracy) and it remains the best model at every difficulty level on both metrics, but the drop itself is just as steep in relative terms as for the other two models, and the hardest problems remain largely unsolved even for it.
+\subsection{Second, the reasoning architecture itself, not parameter count, is the most likely driver of DeepSeek's low score.}
+\label{sec:rq1-finding-reasoning}
 
-\textbf{Exact match vs.\ execution accuracy.} For all three models, execution accuracy aggregated across all difficulties exceeds exact matching accuracy (Table~\ref{tab:overall-performance}): 0.209 vs.\ 0.099 for Qwen3-0.6B, 0.353 vs.\ 0.256 for Qwen3-4B, and 0.121 vs.\ 0.085 for DeepSeek. Since exact matching requires every SQL component to match the gold query while execution accuracy only requires the same result set, this gap indicates each model writes some queries that are valid and correct but phrased differently from the gold SQL (e.g.\ a different but equivalent join order, or an explicit column list where the gold query uses \texttt{SELECT *}). The gap is widest for Qwen3-0.6B (11.0 points), close behind for Qwen3-4B (9.7 points), and narrowest for DeepSeek (3.6 points); DeepSeek's narrower gap reflects it producing fewer alternative-but-valid queries. Qwen3-4B's gap is almost as wide as Qwen3-0.6B's despite much higher absolute accuracy, so scaling up within the Qwen3 family raises both Exact Match Accuracy and Execution Accuracy together rather than closing the gap between them.
+Its invalid-output rate (9.7\%) is markedly higher than Qwen3-0.6B's (2.2\%) and Qwen3-4B's (0.0\% in this run) (\ref{sec:invalid-outputs}). In Tables~\ref{tab:deepseek-outcome}--\ref{tab:deepseek-unfinished-by-difficulty}, 100 of 1034 generations (9.7\%) end without usable SQL. 85 never leave the reasoning phase, 13 are cut while writing the answer, and 2 finish without SQL. The number of unusable SQL generations also grows with difficulty, from 6.0\% on easy to 16.3\% on extra problems. These are not cases of long productive reasoning either: 95.9\% of the cut-off generations are highly self-repetitive (compression ratio below 0.15, median compression ratio 0.095, vs.\ 0.418 for finished generations), rewriting the same query and repeating phrases like ``So the final query is:'' without converging. Finishing does not make it better either: on the 934 questions DeepSeek does finish, its exact matching (0.094) and component F1 (0.286) are still below Qwen3-0.6B's on the same questions (0.103 / 0.317) and far below Qwen3-4B's (0.257 / 0.440), despite generating 512 tokens per question on average there, against 46 and 39 tokens overall for Qwen3-0.6B and Qwen3-4B (about 11x and 13x fewer). This extra length also costs time: DeepSeek is 25-28x slower per example than either Qwen3 model (\ref{sec:efficiency}). The reasoning trace mostly lengthens the output and sometimes never terminates, without improving the SQL when it does, and size alone is not the explanation, since Qwen3-4B is both bigger than DeepSeek and the best model in the comparison. This does not fully isolate reasoning from DeepSeek's other differences from the two Qwen3 models, such as distillation (see Limitations).
 
-\textbf{Limitations.} Our working hypothesis is that Text-to-SQL at this scale does not benefit from an explicit reasoning trace, and that a non-reasoning model is sufficient, with performance instead scaling with parameter count within a fixed model family. The results are consistent with this hypothesis. However, they do not establish that Text-to-SQL is too simple for reasoning models in general due to several factors:
+\subsection{Third, query difficulty has a substantial, consistent effect on every model, including the best one.}
+\label{sec:rq1-finding-difficulty}
+
+Exact matching and execution accuracy both fall sharply from easy to extra-hard problems for all three models (\ref{sec:by-difficulty}). Qwen3-4B's drop is from a much higher base (0.508 to 0.012 exact matching, 0.565 to 0.139 execution accuracy) and it remains the best model at every difficulty level on both metrics, but the drop itself is just as steep in relative terms as for the other two models, and the hardest problems remain largely unsolved even for it.
+
+\subsection{Exact Match vs.\ Execution Accuracy}
+\label{sec:rq1-exact-vs-execution}
+
+For all three models, execution accuracy aggregated across all difficulties exceeds exact matching accuracy (Table~\ref{tab:overall-performance}): 0.209 vs.\ 0.099 for Qwen3-0.6B, 0.353 vs.\ 0.256 for Qwen3-4B, and 0.121 vs.\ 0.085 for DeepSeek. Since exact matching requires every SQL component to match the gold query while execution accuracy only requires the same result set, this gap indicates each model writes some queries that are valid and correct but phrased differently from the gold SQL (e.g.\ a different but equivalent join order, or an explicit column list where the gold query uses \texttt{SELECT *}). The gap is widest for Qwen3-0.6B (11.0 points), close behind for Qwen3-4B (9.7 points), and narrowest for DeepSeek (3.6 points); DeepSeek's narrower gap reflects it producing fewer alternative-but-valid queries. Qwen3-4B's gap is almost as wide as Qwen3-0.6B's despite much higher absolute accuracy, so scaling up within the Qwen3 family raises both exact matching accuracy and execution accuracy together rather than closing the gap between them.
+
+\subsection{Limitations}
+\label{sec:rq1-limitations}
+
+Our working hypothesis is that Text-to-SQL at this scale does not benefit from an explicit reasoning trace, and that a non-reasoning model is sufficient, with performance instead scaling with parameter count within a fixed model family. The results are consistent with this hypothesis. However, they do not establish that Text-to-SQL is too simple for reasoning models in general due to several factors:
 
 \begin{itemize}
 \item \textbf{Truncation and failed outputs for DeepSeek.} These count as failures on every metric and lower its recall, exact matching, and execution scores, but Table~\ref{tab:deepseek-finished-934} shows removing them would not change the ranking (DeepSeek is also lower on the questions it finished), and Table~\ref{tab:deepseek-repetition} shows the cut-off generations are repetition loops, so a larger token budget is unlikely to rescue them.
 \item \textbf{Model differences beyond reasoning.} Qwen3-0.6B and Qwen3-4B share a model family, isolating the effect of scale between them, but DeepSeek differs from both in family, size, and pretraining/post-training, not only in whether it reasons; it is also a distilled model, so the effect of reasoning cannot be fully separated from distillation quality.
 \item \textbf{Aggregated component matching.} The component matching figures in Table~\ref{tab:difficulty-component} (and in Table~\ref{tab:overall-performance}) are our own macro-average (mean of the 10 per-component accuracy and recall scores, with F1 computed from these two means), not a number reported by Spider.
+\item \textbf{Asymmetric token budgets.} Qwen3-0.6B is capped at 256 output tokens while Qwen3-4B and DeepSeek both get 4096 (\ref{sec:inference-settings}), so the invalid-output-rate comparison in \ref{sec:invalid-outputs} is not run under identical budgets for all three models. This is unlikely to explain Qwen3-0.6B's low invalid rate, since its average output is only 46 tokens (table~\ref{tab:tokens-per-example}), well under even its own tighter cap, but the comparison is not perfectly controlled.
 \end{itemize}
 
 Overall, in this zero-shot, cross-domain setting, a larger non-reasoning decoder-only model (Qwen3-4B, 4B) clearly outperforms both a same-family model at under a sixth its size (Qwen3-0.6B) and a reasoning model of intermediate size from a different family (DeepSeek-R1-Distill-Qwen-1.5B, 1.5B), while also being faster per example than either. None of the three models solve more than half of even the easiest problems or more than a small fraction of hard or extra-hard queries. This answers RQ1 for the three models evaluated.
