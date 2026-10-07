@@ -1,6 +1,0 @@
-eval_err_num:1
-eval_err_num:2
-                     easy                 medium               hard                 extra                all                 
-count                0                    1                    0                    2                    3                   
-=====================   EXECUTION ACCURACY     =====================
-execution            0.000                0.000                0.000                0.000                0.000               
