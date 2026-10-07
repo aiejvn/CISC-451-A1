@@ -20,6 +20,9 @@ MODELS_CONFIG = EVAL_ROOT / "configs" / "models.yaml"
 SPIDER_DIR = REPO_ROOT / "spider"
 # SPIDER_DB_DIR points schema lookup, training and evaluation at another database tree (e.g. mock_spider/database).
 DB_DIR = Path(os.environ.get("SPIDER_DB_DIR", SPIDER_DIR / "database")).resolve()
+# MODELS_PATH points weight resolution at a local checkpoint tree (e.g. ./models/<author>/<name>), checked before
+# the HF cache; defaults to a models/ dir at the repo root (fine even if that dir doesn't exist -- see _local_dir).
+MODELS_DIR = Path(os.environ.get("MODELS_PATH", REPO_ROOT / "models")).resolve()
 EVALUATION_PY = SPIDER_DIR / "evaluation.py"
 TABLES_JSON = SPIDER_DIR / "evaluation_examples" / "examples" / "tables.json"  # evaluation.py FK map
 
@@ -115,13 +118,15 @@ def _local_dir(repo_id: str, models_path: Path) -> Path | None:
 def resolve_local_path(repo_id: str, models_path: Path | None = None, local_only: bool = False) -> str:
     """Return a local weights dir: <models_path>/... if present, else the HF cache (downloading once unless local_only).
 
-    With local_only, never touches the network and raises if the weights are not under models_path.
+    `models_path` defaults to MODELS_DIR (./models, or $MODELS_PATH), so every caller checks for a local checkpoint
+    tree before touching the HF cache unless it opts out by passing an explicit path. With local_only, never
+    touches the network and raises if the weights are not under models_path.
     """
-    if models_path is not None:
-        found = _local_dir(repo_id, models_path)
-        if found is not None:
-            print(f"\n>>> LOADING {repo_id} FROM LOCAL DIR {found} (HuggingFace skipped) <<<\n", flush=True)
-            return str(found)
+    models_path = models_path or MODELS_DIR
+    found = _local_dir(repo_id, models_path)
+    if found is not None:
+        print(f"\n>>> LOADING {repo_id} FROM LOCAL DIR {found} (HuggingFace skipped) <<<\n", flush=True)
+        return str(found)
     if local_only:
         raise FileNotFoundError(
             f"--local-only: no model for {repo_id!r} under {models_path} "

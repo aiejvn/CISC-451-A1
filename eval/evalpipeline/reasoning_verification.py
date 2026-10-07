@@ -1,24 +1,23 @@
-"""Task 2 (RQ2) verification: confirmatory tests on top of the Spearman correlation analysis in
-reasoning_metrics.py.
+"""Task 2 (RQ2) verification: regression-based confirmatory checks on top of the Spearman
+correlation analysis in reasoning_metrics.py.
 
     python -m eval.evalpipeline.reasoning_verification \\
         --per-question eval/results/task2_analysis/per_question_metrics.csv \\
         --out eval/results/task2_analysis
-
-Four primary tests (one per feature x correctness/difficulty cell):
-  - Mann-Whitney U: Token Count / Information Retention, correct vs. incorrect (exact match),
-    overall and within each difficulty stratum.
-  - Kendall's tau-b: Token Count / Information Retention vs. difficulty, overall and within each
-    correctness stratum. Preferred here over a second Spearman run because it is the standard
-    choice when one variable has many ties (difficulty has only four distinct values, and
-    Information Retention has a large tied mass at 1.0), and is the ordered-groups analogue of the
-    Jonckheere-Terpstra trend test.
 
 Two robustness checks (do the bivariate relationships survive controlling for the other variable?):
   - Logistic regression: exact match ~ standardized log Token Count + standardized Information
     Retention + standardized difficulty (jointly).
   - Ordinal (proportional-odds) regression: difficulty ~ standardized log Token Count +
     standardized Information Retention (jointly).
+
+Regression diagnostics on top of the above:
+  - Variance inflation factors for the three logistic-regression predictors (checks whether the
+    robustness-check coefficients in logistic_robustness() are distorted by collinearity between
+    Token Count, Retention and difficulty).
+  - A proportional-odds check for the ordinal model (compares the per-cutoff cumulative-logit
+    coefficients against the single pooled coefficient OrderedModel assumes is constant across
+    cutoffs).
 """
 import argparse
 from pathlib import Path
@@ -26,8 +25,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
-from scipy import stats
 from statsmodels.miscmodels.ordinal_model import OrderedModel
+from statsmodels.stats.outliers_influence import variance_inflation_factor
 
 LEVELS = ["easy", "medium", "hard", "extra"]
 
@@ -39,43 +38,51 @@ def load(per_question_csv: Path) -> pd.DataFrame:
     return df
 
 
-def mann_whitney_by_correctness(df: pd.DataFrame, metric: str) -> pd.DataFrame:
-    """metric by exact-match correctness, overall and within each difficulty stratum."""
-    rows = []
-    for level in ["all"] + LEVELS:
-        sub = df if level == "all" else df[df["difficulty"] == level]
-        g0 = sub.loc[sub["exact"] == 0.0, metric].dropna()
-        g1 = sub.loc[sub["exact"] == 1.0, metric].dropna()
-        if len(g0) < 2 or len(g1) < 2:
-            rows.append({"level": level, "n_incorrect": len(g0), "n_correct": len(g1),
-                         "U": np.nan, "p": np.nan, "rank_biserial_r": np.nan})
-            continue
-        U, p = stats.mannwhitneyu(g0, g1, alternative="two-sided")
-        r = 1 - (2 * U) / (len(g0) * len(g1))
-        rows.append({"level": level, "n_incorrect": len(g0), "n_correct": len(g1),
-                     "U": U, "p": p, "rank_biserial_r": r})
-    return pd.DataFrame(rows)
-
-
-def kendall_by_difficulty(df: pd.DataFrame, metric: str) -> pd.DataFrame:
-    """metric vs. difficulty (tau-b), overall and within each correctness stratum."""
-    rows = []
-    for group in ["all", "incorrect", "correct"]:
-        if group == "all":
-            sub = df
-        else:
-            sub = df[df["exact"] == (0.0 if group == "incorrect" else 1.0)]
-        pair = sub[[metric, "difficulty_code"]].dropna()
-        if len(pair) < 5 or pair["difficulty_code"].nunique() < 2:
-            rows.append({"group": group, "n": len(pair), "tau_b": np.nan, "p": np.nan})
-            continue
-        tau, p = stats.kendalltau(pair[metric], pair["difficulty_code"])
-        rows.append({"group": group, "n": len(pair), "tau_b": tau, "p": p})
-    return pd.DataFrame(rows)
-
-
 def _zscore(s: pd.Series) -> pd.Series:
     return (s - s.mean()) / s.std()
+
+
+def vif_table(df: pd.DataFrame) -> pd.DataFrame:
+    """Variance inflation factors for the three predictors used in logistic_robustness()."""
+    work = df.copy()
+    work["z_log_token_count"] = _zscore(np.log1p(work["token_count"]))
+    work["z_retention"] = _zscore(work["retention"])
+    work["z_difficulty"] = _zscore(work["difficulty_code"])
+    reg = work[["z_log_token_count", "z_retention", "z_difficulty"]].dropna()
+    X = sm.add_constant(reg)
+    rows = [{"predictor": col, "VIF": variance_inflation_factor(X.values, i)}
+            for i, col in enumerate(X.columns) if col != "const"]
+    out = pd.DataFrame(rows)
+    out.attrs["n"] = len(reg)
+    return out
+
+
+def proportional_odds_check(df: pd.DataFrame) -> pd.DataFrame:
+    """Compares the pooled ordinal-regression coefficients (which assume a single, constant effect
+    across all difficulty cutoffs) against separately-fit cumulative-logit coefficients at each
+    cutoff. Large, systematic drift across cutoffs is evidence against the proportional-odds
+    assumption that ordinal_robustness() relies on."""
+    work = df.copy()
+    work["z_log_token_count"] = _zscore(np.log1p(work["token_count"]))
+    work["z_retention"] = _zscore(work["retention"])
+    reg = work[["difficulty_code", "z_log_token_count", "z_retention"]].dropna()
+
+    mod = OrderedModel(reg["difficulty_code"], reg[["z_log_token_count", "z_retention"]], distr="logit")
+    pooled = mod.fit(method="bfgs", disp=0)
+    rows = [{"cutoff": "pooled (proportional-odds)",
+             "coef_token_count": pooled.params["z_log_token_count"], "se_token_count": pooled.bse["z_log_token_count"],
+             "coef_retention": pooled.params["z_retention"], "se_retention": pooled.bse["z_retention"]}]
+
+    X = sm.add_constant(reg[["z_log_token_count", "z_retention"]])
+    for k in (1, 2, 3):
+        y = (reg["difficulty_code"] >= k).astype(int)
+        res = sm.Logit(y, X).fit(disp=0)
+        rows.append({"cutoff": f"P(difficulty >= {LEVELS[k]})",
+                     "coef_token_count": res.params["z_log_token_count"], "se_token_count": res.bse["z_log_token_count"],
+                     "coef_retention": res.params["z_retention"], "se_retention": res.bse["z_retention"]})
+    out = pd.DataFrame(rows)
+    out.attrs["n"] = len(reg)
+    return out
 
 
 def logistic_robustness(df: pd.DataFrame) -> pd.DataFrame:
@@ -128,24 +135,6 @@ def main() -> None:
 
     df = load(args.per_question)
 
-    mw_tc = mann_whitney_by_correctness(df, "token_count")
-    mw_ret = mann_whitney_by_correctness(df, "retention")
-    mw_tc.to_csv(args.out / "mann_whitney_tokencount.csv", index=False)
-    mw_ret.to_csv(args.out / "mann_whitney_retention.csv", index=False)
-    print("=== Mann-Whitney U: Token Count by correctness ===")
-    print(mw_tc.to_string(index=False, float_format=lambda x: f"{x:.4g}"))
-    print("\n=== Mann-Whitney U: Information Retention by correctness ===")
-    print(mw_ret.to_string(index=False, float_format=lambda x: f"{x:.4g}"))
-
-    kt_tc = kendall_by_difficulty(df, "token_count")
-    kt_ret = kendall_by_difficulty(df, "retention")
-    kt_tc.to_csv(args.out / "kendall_tokencount.csv", index=False)
-    kt_ret.to_csv(args.out / "kendall_retention.csv", index=False)
-    print("\n=== Kendall's tau-b: Token Count vs. difficulty ===")
-    print(kt_tc.to_string(index=False, float_format=lambda x: f"{x:.4g}"))
-    print("\n=== Kendall's tau-b: Information Retention vs. difficulty ===")
-    print(kt_ret.to_string(index=False, float_format=lambda x: f"{x:.4g}"))
-
     logit = logistic_robustness(df)
     logit.to_csv(args.out / "logistic_regression.csv", index=False)
     print(f"\n=== Logistic regression: exact ~ token_count + retention + difficulty (n={logit.attrs['n']}, "
@@ -156,6 +145,16 @@ def main() -> None:
     ordinal.to_csv(args.out / "ordinal_regression.csv", index=False)
     print(f"\n=== Ordinal regression: difficulty ~ token_count + retention (n={ordinal.attrs['n']}) ===")
     print(ordinal.to_string(index=False, float_format=lambda x: f"{x:.4g}"))
+
+    vif = vif_table(df)
+    vif.to_csv(args.out / "vif.csv", index=False)
+    print(f"\n=== VIF: logistic regression predictors (n={vif.attrs['n']}) ===")
+    print(vif.to_string(index=False, float_format=lambda x: f"{x:.4g}"))
+
+    po_check = proportional_odds_check(df)
+    po_check.to_csv(args.out / "proportional_odds_check.csv", index=False)
+    print(f"\n=== Proportional-odds check: per-cutoff cumulative logits vs. pooled ordinal (n={po_check.attrs['n']}) ===")
+    print(po_check.to_string(index=False, float_format=lambda x: f"{x:.4g}"))
 
 
 if __name__ == "__main__":

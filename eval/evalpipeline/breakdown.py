@@ -1,9 +1,9 @@
 """Why does a reasoning model score low? Splits a reasoning model's run by generation outcome and scores each part.
 
     SPIDER_DB_DIR=mock_spider/database python -m eval.evalpipeline.breakdown \
-        --reasoning 451_gen_results_2026-10-02/deepseek-ai__DeepSeek-R1-Distill-Qwen-1.5B/20261002-154642 \
-        --others 451_gen_results_2026-10-02/Qwen__Qwen3-0.6B/20261002-154642 \
-                 451_gen_results_2026-10-02/allenai__OLMo-2-0425-1B-Instruct/20261002-154642
+        --reasoning eval/results/deepseek-ai__DeepSeek-R1-Distill-Qwen-1.5B/task1_orig \
+        --others eval/results/Qwen__Qwen3-0.6B/task1_orig \
+                 eval/results/allenai__OLMo-2-0425-1B-Instruct/task1_orig
 
 Outcomes: finished with SQL | finished, no usable SQL | cut while thinking (no </think>) | cut while answering.
 A generation is "cut" if it reached max_new_tokens or was stopped as a repetition loop.

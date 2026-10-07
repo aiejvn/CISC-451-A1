@@ -29,7 +29,7 @@ CHECKPOINTS = [  # name, adapter dir, prompt format
     ("pp1_vbi", RUNS / "pp1/r1_vbi", "plan"),
     ("pp1_selfplay", RUNS / "pp1/r1_sp", "plan"),
 ]
-TASK1_RUN = REPO_ROOT / "451_gen_results_2026-10-02/Qwen__Qwen3-0.6B/20261002-154642"  # Task 1 greedy run
+TASK1_RUN = REPO_ROOT / "eval/results/Qwen__Qwen3-0.6B/20261002-154642"  # Task 1 greedy run
 
 
 def baseline_on_mock_db() -> None:

@@ -1,15 +1,16 @@
 # CISC 451 — A1: Cross-Domain Text-to-SQL
 
 Repo setup guide. For the write-up (research questions, methodology, results, discussion), see
-[`REPORT.md`](REPORT.md). For a single notebook that re-runs the whole pipeline and regenerates every table
-and figure in `REPORT.md` live, see [`RQ1_RQ2_RQ3.ipynb`](RQ1_RQ2_RQ3.ipynb).
+[`report/main.tex`](report/main.tex) (pulls in `report/RQ1.tex`, `RQ2.tex`, `RQ3.tex`). For a single
+notebook that re-runs the whole pipeline and regenerates every table and figure in the report live, see
+[`RQ1_RQ2_RQ3.ipynb`](RQ1_RQ2_RQ3.ipynb).
 
 ## Layout
 
 | Path | What it is |
 |---|---|
-| `REPORT.md` | The report: RQ1–RQ3 methodology, results, discussion. |
-| `RQ1_RQ2_RQ3.ipynb` | Executable notebook that reproduces every table/figure in `REPORT.md` from a live run. |
+| `report/` | The report: `main.tex` + `RQ1.tex`/`RQ2.tex`/`RQ3.tex` (methodology, results, discussion per RQ). |
+| `RQ1_RQ2_RQ3.ipynb` | Executable notebook that reproduces every table/figure in the report from a live run. |
 | `eval/evalpipeline/` | RQ1/RQ2 pipeline: prompting, generation, Spider evaluation, reasoning-trace analysis. |
 | `eval/configs/models.yaml` | The three models compared in RQ1 (repo id, quantization, token budget, thinking mode). |
 | `eval/results/` | Generation + evaluation outputs, one subdirectory per model per run. |
@@ -25,7 +26,7 @@ and figure in `REPORT.md` live, see [`RQ1_RQ2_RQ3.ipynb`](RQ1_RQ2_RQ3.ipynb).
 
 - Linux, Python 3.12.
 - An NVIDIA GPU with CUDA. RQ1 generation and RQ3 fine-tuning both need one; RQ2 is pure CPU analysis over
-  already-generated outputs. `REPORT.md`'s RQ1 numbers were produced on a 24 GB RTX 4090; RQ3's were
+  already-generated outputs. `report/RQ1.tex`'s numbers were produced on a 24 GB RTX 4090; RQ3's were
   produced on an 8 GB GPU — see the VRAM note under RQ3 below if you have less than 24 GB.
 - ~15 GB disk for the three HF model checkpoints (bf16), plus a few GB for the Spider/mock SQLite trees.
 
@@ -75,36 +76,39 @@ SPIDER_DB_DIR=mock_spider/database python -m train.mockdb # mock_spider/database
 
 - **Schema-only DBs** (`spider/database/`) are used for RQ1 and RQ2. Exact-match scoring is unaffected;
   execution-accuracy numbers against these are schema-level only (every query against an empty table that
-  returns nothing scores as correct) — see `REPORT.md` §1.1.
+  returns nothing scores as correct) — see `report/RQ1.tex`'s Methodology section.
 - **Mock DBs with rows** (`mock_spider/database/`) are used for RQ3, where execution-match correctness
   during training/evaluation actually needs real rows to check against. Row values are synthesized from the
-  literals each gold query filters on, seeded deterministically — see `train/mockdb.py` and `REPORT.md`'s
-  RQ3 Limitations for what this approximates and doesn't.
+  literals each gold query filters on, seeded deterministically — see `train/mockdb.py` and
+  `report/RQ3.tex`'s Limitations section for what this approximates and doesn't.
 
 `SPIDER_DB_DIR` controls which DB tree `eval/evalpipeline/common.py` and `train/common.py` point at; it
 defaults to `spider/database` when unset. Always set it to `mock_spider/database` for anything under `train/`.
 
 ## 4. Model weights
 
-The three models RQ1 compares (`eval/configs/models.yaml`) are ordinary HuggingFace repos, downloaded to
-the HF cache (`~/.cache/huggingface`) on first use:
+The three models RQ1 compares (`eval/configs/models.yaml`) are ordinary HuggingFace repos:
 
 - `Qwen/Qwen3-0.6B`
-- `allenai/OLMo-2-0425-1B-Instruct`
+- `Qwen/Qwen3-4B`
 - `deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B`
 
-No separate download step is required — `eval/evalpipeline/common.py:resolve_local_path` calls
-`snapshot_download` automatically the first time a model is requested. To pre-fetch them explicitly, or to
-run fully offline afterwards:
+Every weight load in this repo (RQ1 generation, RQ3 fine-tuning/evaluation) goes through
+`eval/evalpipeline/common.py:resolve_local_path`, which checks `./models/<author>/<name>` first (or
+`$MODELS_PATH`, if set, as a different local directory) and only falls back to the HF cache
+(`~/.cache/huggingface`) — downloading automatically the first time a model is requested — for whatever
+isn't found there. So: drop a model's files under `./models/<author>/<name>/` (e.g.
+`./models/Qwen/Qwen3-0.6B/`) to use a local copy, or do nothing and let it download to the HF cache. To
+pre-fetch into the HF cache explicitly, or to run fully offline afterwards:
 
 ```bash
 huggingface-cli download Qwen/Qwen3-0.6B
-huggingface-cli download allenai/OLMo-2-0425-1B-Instruct
+huggingface-cli download Qwen/Qwen3-4B
 huggingface-cli download deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B
 ```
 
-Pass `--models-path <dir> --local-only` to the scripts below to load weights from a local directory instead
-of the HF cache (see `eval/evalpipeline/run.py --help`).
+Pass `--models-path <dir> --local-only` to the scripts below to require weights from a specific local
+directory and never touch the network (see `eval/evalpipeline/run.py --help`).
 
 ## 5. Running the pipeline
 
@@ -112,7 +116,7 @@ of the HF cache (see `eval/evalpipeline/run.py --help`).
 
 ```bash
 python -m eval.evalpipeline.run \
-  --models Qwen/Qwen3-0.6B allenai/OLMo-2-0425-1B-Instruct deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B \
+  --models Qwen/Qwen3-0.6B Qwen/Qwen3-4B deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B \
   --etype all --batch-size 128 --run-id my_run
 ```
 
@@ -150,8 +154,8 @@ python -m train.evaluate --summary   # just print the table from saved metrics
 ```
 
 See `train/finetune.py`'s module docstring and `train/runs/chain1.sh` / `chain2.sh` for the exact commands
-`REPORT.md`'s Table 16 chain was built from, and `train/evaluate.py --help` for `--only`, `--zero-shot`, and
-`--summary`.
+`report/RQ3.tex`'s Table 16 chain was built from, and `train/evaluate.py --help` for `--only`, `--zero-shot`,
+and `--summary`.
 
 **VRAM.** The historical logs in `train/runs/*.log` / `*.out` show this chain running (with recoverable OOM
 retries) on an 8 GB GPU; LoRA rank/alpha, batch size, and gradient checkpointing are already tuned for that.
@@ -166,7 +170,7 @@ python -m ipykernel install --user --name cisc451-a1
 jupyter lab RQ1_RQ2_RQ3.ipynb   # or open it in VS Code / Cursor and pick the cisc451-a1 kernel
 ```
 
-Run cells top to bottom from the repo root (the notebook asserts this via `REPORT.md`'s presence). It
+Run cells top to bottom from the repo root (the notebook asserts this via `report/main.tex`'s presence). It
 performs steps 3–5 above itself — including live model inference and the full RQ3 fine-tuning chain — so
 expect it to take hours end-to-end on first run; every heavy cell checks whether its output already exists
 and skips the work if so, so re-running after an interruption only repeats what didn't finish. See the
