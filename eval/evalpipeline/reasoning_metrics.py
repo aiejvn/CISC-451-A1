@@ -59,7 +59,8 @@ def load_rows(run_dir: Path) -> list[dict]:
 
 def thinking_tokens(rows: list[dict], repo_id: str) -> dict[int, int]:
     from transformers import AutoTokenizer
-    tok = AutoTokenizer.from_pretrained(repo_id, local_files_only=True)
+    from .common import resolve_local_path
+    tok = AutoTokenizer.from_pretrained(resolve_local_path(repo_id), local_files_only=True)
     return {r["id"]: len(tok(r["thinking"], add_special_tokens=False)["input_ids"]) for r in rows}
 
 
