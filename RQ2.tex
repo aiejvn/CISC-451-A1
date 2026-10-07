@@ -82,6 +82,8 @@ We relate both Token Count and Information Retention to correctness and difficul
 
 The Results below report Token Count and Information Retention broken down two ways: by difficulty, since that is the primary hypothesis under test, and by exact-match correctness (correct/incorrect), used for the descriptive statistics and the boxplots (figure~\ref{fig:rq2-boxplots}) because a binary split is easier to read in a table or figure than 32 continuous submetrics. The correlation analysis itself (table~\ref{tab:rq2-correlations}) still uses the continuous submetrics described above, for the statistical-power reasons given there; the binary-correctness view and the continuous-submetric view are two presentations of the same underlying data, not two different analyses.
 
+\textbf{Verification.} To check that the Spearman findings above are not artifacts of one particular rank-based method or of an unmodeled confound, we add two further layers of testing, reported in \ref{sec:rq2-verification} and \ref{sec:rq2-robustness}. First, we run two confirmatory, feature-specific significance tests directly on the binary/ordinal views used for the descriptive statistics: a Mann-Whitney U test for each feature against exact-match correctness (overall and within each difficulty stratum), and Kendall's tau-b for each feature against difficulty (overall and within each correctness stratum). We prefer Kendall's tau-b over a second Spearman run here because it is the standard choice when one variable has many ties (difficulty has only four distinct values, and Information Retention has a large tied mass at 1.0), and it is the ordered-groups analogue of the Jonckheere-Terpstra trend test. Second, because Token Count, Information Retention and difficulty are all correlated with one another, a bivariate relationship between one feature and an outcome could simply be riding on the other two variables rather than reflecting an independent association. We fit two regression models to check this: a logistic regression of exact-match correctness on standardized log Token Count, standardized Information Retention, and standardized difficulty, all entered jointly; and a proportional-odds (ordinal) regression of difficulty on standardized log Token Count and standardized Information Retention, entered jointly. Token Count is log-transformed before standardizing given its heavy right skew (see above); difficulty enters the logistic model as a single linear control on the log-odds scale, which is a simplification rather than a full categorical treatment, and the ordinal model assumes proportional odds across the three difficulty thresholds, which we did not separately test -- both are limitations of this robustness check, not of the primary Spearman analysis. All four verification tests and both regression models are implemented in \texttt{eval/evalpipeline/reasoning\_verification.py}, run on the same per-question table as the Spearman analysis.
+
 \section{Task 2 -- RQ2: Results}
 \label{sec:rq2-results}
 
@@ -182,3 +184,115 @@ Information Retention & difficulty (overall) & all & 1017 & -0.107 & 0.013 \\
 \bottomrule
 \end{tabular}
 \end{table}
+
+\subsection{Verification: Mann-Whitney U and Kendall's tau-b}
+\label{sec:rq2-verification}
+
+\begin{table}[H]
+\centering
+\footnotesize
+\caption{Mann-Whitney U test: Token Count by exact-match correctness, overall and within each difficulty stratum. $r$ is the rank-biserial correlation (negative = higher Token Count associates with incorrect answers). Full results in \texttt{eval/results/task2\_analysis/mann\_whitney\_tokencount.csv}.}
+\label{tab:rq2-mw-tokencount}
+\begin{tabular}{lccccc}
+\toprule
+Stratum & n(incorrect) & n(correct) & $U$ & $p$ & $r$ \\
+\midrule
+all & 946 & 88 & 60406.5 & $<$0.001 & -0.451 \\
+easy & 195 & 53 & 6423.0 & 0.007 & -0.243 \\
+medium & 411 & 35 & 9644.0 & 0.001 & -0.341 \\
+hard & 174 & 0 & --- & --- & --- \\
+extra & 166 & 0 & --- & --- & --- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\footnotesize
+\caption{Mann-Whitney U test: Information Retention by exact-match correctness, overall and within each difficulty stratum. Full results in \texttt{eval/results/task2\_analysis/mann\_whitney\_retention.csv}.}
+\label{tab:rq2-mw-retention}
+\begin{tabular}{lccccc}
+\toprule
+Stratum & n(incorrect) & n(correct) & $U$ & $p$ & $r$ \\
+\midrule
+all & 931 & 86 & 36583.5 & 0.136 & 0.086 \\
+easy & 194 & 52 & 5245.0 & 0.601 & -0.040 \\
+medium & 407 & 34 & 5989.0 & 0.137 & 0.134 \\
+hard & 172 & 0 & --- & --- & --- \\
+extra & 158 & 0 & --- & --- & --- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\footnotesize
+\caption{Kendall's tau-b: Token Count vs.\ difficulty, overall and within each correctness stratum. Full results in \texttt{eval/results/task2\_analysis/kendall\_tokencount.csv}.}
+\label{tab:rq2-kendall-tokencount}
+\begin{tabular}{lccc}
+\toprule
+Group & n & $\tau_b$ & $p$ \\
+\midrule
+all & 1034 & 0.239 & $<$0.001 \\
+incorrect & 946 & 0.207 & $<$0.001 \\
+correct & 88 & 0.130 & 0.141 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\footnotesize
+\caption{Kendall's tau-b: Information Retention vs.\ difficulty, overall and within each correctness stratum. Full results in \texttt{eval/results/task2\_analysis/kendall\_retention.csv}.}
+\label{tab:rq2-kendall-retention}
+\begin{tabular}{lccc}
+\toprule
+Group & n & $\tau_b$ & $p$ \\
+\midrule
+all & 1017 & -0.091 & $<$0.001 \\
+incorrect & 931 & -0.093 & $<$0.001 \\
+correct & 86 & 0.110 & 0.279 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Token Count's relationship with correctness is confirmed by the Mann-Whitney test: the overall gap is highly significant ($p<0.001$) with a moderate rank-biserial effect ($r=-0.451$), and it holds up within both the easy ($p=0.007$) and medium ($p=0.001$) strata individually. Hard and extra cannot be tested at all, because this run has zero exact matches in either stratum (table~\ref{tab:rq2-mw-tokencount}) -- a direct, concrete confirmation of the Methodology's reason for using continuous correlation instead of a correctness split per difficulty level. Information Retention's correctness gap, by contrast, is \emph{not} statistically significant overall ($p=0.136$, table~\ref{tab:rq2-mw-retention}): the descriptive mean difference noted in \ref{sec:rq2-by-correctness} (0.924 vs.\ 0.893) is not large enough relative to the within-group spread to rule out chance at this sample size.
+
+Kendall's tau-b replicates the Spearman difficulty trend for both features using a method that does not rely on an equal-interval difficulty scale and is designed for heavily tied data: Token Count's $\tau_b=0.239$ ($p<0.001$) is consistent in sign and significance with its Spearman $\rho=0.313$, and Information Retention's $\tau_b=-0.091$ ($p<0.001$) is consistent with its Spearman $\rho=-0.107$ (tables~\ref{tab:rq2-kendall-tokencount}--\ref{tab:rq2-kendall-retention}). Both trends replicate within the much larger incorrect stratum (931--946 rows) but are not significant within the sparse correct stratum (86--88 rows, $p=0.141$ and $0.279$), which is expected given the large drop in sample size rather than evidence against the trend.
+
+\subsection{Robustness: controlling for confounds}
+\label{sec:rq2-robustness}
+
+\begin{table}[H]
+\centering
+\footnotesize
+\caption{Logistic regression: exact match on standardized log Token Count, standardized Information Retention, and standardized difficulty, fit jointly ($n=1017$, pseudo $R^2=0.188$). OR is the odds ratio per one-SD increase in the predictor. Full results in \texttt{eval/results/task2\_analysis/logistic\_regression.csv}.}
+\label{tab:rq2-logistic}
+\begin{tabular}{lccccc}
+\toprule
+Predictor & coef & SE & $z$ & $p$ & OR [95\% CI] \\
+\midrule
+Intercept & -3.351 & 0.227 & -14.76 & $<$0.001 & 0.035 [0.022, 0.055] \\
+log Token Count ($z$) & -1.087 & 0.300 & -3.62 & $<$0.001 & 0.337 [0.187, 0.607] \\
+Information Retention ($z$) & 0.091 & 0.139 & 0.65 & 0.514 & 1.095 [0.834, 1.437] \\
+Difficulty ($z$) & -1.278 & 0.201 & -6.35 & $<$0.001 & 0.279 [0.188, 0.413] \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\footnotesize
+\caption{Proportional-odds (ordinal) regression: difficulty on standardized log Token Count and standardized Information Retention, fit jointly ($n=1017$). OR is the odds ratio per one-SD increase in the predictor. Full results in \texttt{eval/results/task2\_analysis/ordinal\_regression.csv}.}
+\label{tab:rq2-ordinal}
+\begin{tabular}{lccccc}
+\toprule
+Predictor & coef & SE & $z$ & $p$ & OR [95\% CI] \\
+\midrule
+log Token Count ($z$) & 0.398 & 0.059 & 6.78 & $<$0.001 & 1.489 [1.327, 1.670] \\
+Information Retention ($z$) & -0.177 & 0.059 & -2.99 & 0.003 & 0.837 [0.746, 0.941] \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Controlling for the other feature and for difficulty changes which bivariate relationship survives. Token Count's association with correctness holds up: each one-SD increase in log Token Count is associated with 66\% lower odds of an exact match (OR$=0.337$, $p<0.001$), holding Information Retention and difficulty fixed (table~\ref{tab:rq2-logistic}) -- consistent with, and strengthening, finding~\ref{item:rq2-finding-tokencount-disobey}. Information Retention's association with correctness does not survive the same control (OR$=1.095$, $p=0.514$): once Token Count and difficulty are accounted for, Retention has no detectable independent effect on correctness, so the positive finding in \ref{item:rq2-finding-retention-performance} should be read as a submetric-specific, not a global, relationship. Both features' difficulty relationships, in contrast, are independent of one another: the ordinal regression finds Token Count still predicts higher difficulty (OR$=1.489$ per SD, $p<0.001$) and Information Retention still predicts lower difficulty (OR$=0.837$ per SD, $p=0.003$) when controlling for each other (table~\ref{tab:rq2-ordinal}), so neither difficulty trend in \ref{sec:rq2-by-difficulty} is simply a byproduct of the other feature's trend.
