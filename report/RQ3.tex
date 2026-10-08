@@ -7,7 +7,7 @@
 \subsection{Model and Option Selection}
 \label{sec:rq3-model-selection}
 
-\textbf{We select Option B -- Adaptation / Learning to Adapt: we adapt Qwen3-0.6B's parameters using PlanPlay-SQL}, rather than Option A's reasoning-only strategies. We chose it as its relatively small size makes it computationally efficient and accessible for finetuning on a single RTX 4090.
+\textbf{We select Option B -- Adaptation / Learning to Adapt: we adapt Qwen3-0.6B's parameters using PlanPlay-SQL}, rather than Option A's reasoning-only strategies. Text-to-SQL requires substantial schema understanding, and precise SQl generaiton. This makes Qwen3-0.6B an interesting model to improve, as its relatively small size makes it computationally efficient and accessible for fine-tuning.
 
 \subsection{Approach: PlanPlay-SQL in Four Stages}
 \label{sec:rq3-approach}
@@ -23,7 +23,8 @@ We call our method \textbf{PlanPlay-SQL}: the model first writes a short \emph{p
 
 We train using Spider's provided training split, and checkpoints are selected on held-out training databases (\ref{sec:rq3-evaluation}), so the dev set stays untouched and evaluation stays cross-domain. We skip SPFT-SQL's (2025) synthetic question generation because Spider already provides gold SQL to execute against.
 
-We expect PlanPlay-SQL to improve performance in two ways: Stage 2 (the warm start) should raise exact and execution accuracy most, since it directly targets the style gap identified in \ref{sec:rq3-model-selection}. Stages 3-4 (verification and self-play) then train on the model's own execution-checked outputs, which should reduce its remaining execution errors, adding only a small gain from self-play by analogy with SPFT-SQL's (2025) larger-model results. To measure each part, we report five rows on the same dev set and metrics as \hyperref[sec:rq1-results]{Task 1}: the original solution, the plan prompt only, the warm start only, warm start plus verification fine-tuning, and the full PlanPlay-SQL.
+We expect PlanPlay-SQL to improve performance in several ways: stage 1 (the plan prompt with no fine-tuning) serves as a control that isolates what the prompt format contributes on its own, so any further gain from stage 2 onward can be attributed to training the model to use the format rather than to the format itself. Stage 2 (the warm start) should raise exact and execution accuracy most, since it directly targets the style gap identified in \ref{sec:rq3-model-selection}. Stage 3 (verification-based fine-tuning) then trains on the model's own execution-verified outputs rather than only gold text, which should reduce its remaining execution errors without needing additional gold-labeled data. Stage 4 (self-play) should add a further small gain on top of stage 3, by analogy with SPFT-SQL's (2025) 0.6-to-0.8-point gain on larger models. To measure each part, we report five rows on the same dev set and metrics as \hyperref[sec:rq1-results]{Task 1}: the original solution, the plan prompt only, the warm start only, warm start plus verification fine-tuning, and the full PlanPlay-SQL.
+
 
 
 \subsection{Model Training}
@@ -64,7 +65,7 @@ We evaluate on the same 1034-question Spider dev set and the same metrics as \hy
 
 Checkpoints across all stages are selected on a held-out validation set of 707 questions from 20 training databases that were never used for training, keeping the dev set untouched for a single final comparison as well as keeping evaluation cross-domain. This mimics how the Spider benchmark was used in Task 1.
 
-\section{Task 3 -- RQ3: Results}
+\section{RQ3: Results}
 \label{sec:rq3-results}
 
 \subsection{Overall Results}
@@ -98,17 +99,51 @@ The adapted model is better than the original on every metric and every difficul
 \subsection{Results by Difficulty Level}
 \label{sec:rq3-results-difficulty}
 
-The gain is not uniform across difficulty. The largest relative gains are on hard (exact matching 0.006 to 0.385) and extra (0.006 to 0.265) problems, which the original model almost never solved -- consistent with the warm start fixing a systematic style/convention gap rather than a difficulty-specific one, since harder questions have the most schema and clause structure for the plan format to organize. Easy and medium problems also improve substantially (exact matching 0.157 to 0.762 and 0.137 to 0.594 respectively), so the adaptation is not merely redistributing accuracy toward harder cases at the expense of easy ones.
+The gain is not uniform across difficulty. The largest relative gains are on hard (exact matching 0.006 to 0.385) and extra (0.006 to 0.265) problems, which the original model almost never solved. This is consistent with the warm start fixing a systematic style/convention gap rather than a difficulty-specific one, since harder questions have the most schema and clause structure for the plan format to organize. Easy and medium problems also improve substantially (exact matching 0.157 to 0.762 and 0.137 to 0.594 respectively), so the adaptation is not merely redistributing accuracy toward harder cases at the expense of easy ones.
 
 \subsection{Metrics Breakdown}
 \label{sec:rq3-metrics-breakdown}
 
-The three metrics agree on direction but differ in what they reveal. Execution accuracy (0.130 to 0.561) and exact matching (0.099 to 0.546) rise by nearly the same amount, so the model is not merely producing lucky executions on the mock databases but genuinely matching gold queries. Component matching recall rises further in relative terms (0.209 to 0.636), meaning the model now includes most gold-query components even in cases where it falls short of an exact or executable match. The model is still weak on queries with set operations and nesting: the INTERSECT/UNION/EXCEPT and nested-query component (IUEN) has an accuracy of only 0.288, the one component the plan format and fine-tuning did not substantially fix.
+The three metrics agree on direction but differ in what they reveal. Execution accuracy (0.130 to 0.561) and exact matching (0.099 to 0.546) rise by nearly the same amount, so the model is not merely producing lucky executions on the mock databases but genuinely matching gold queries. Component matching recall rises further in relative terms (0.209 to 0.636), meaning the model now includes most gold-query components even in cases where it falls short of an exact or executable match (see Table~\ref{tab:rq3-component-breakdown-06b})
+
+\begin{table}[H]
+\centering
+\footnotesize
+\caption{Component Matching accuracy by SQL component, original vs.\ PlanPlay-SQL-adapted Qwen3-0.6B, on the same 1034 Spider dev questions as table~\ref{tab:rq3-dev-results-06b}. Component-matching accuracy does not depend on the execution databases.}
+\label{tab:rq3-component-breakdown-06b}
+\resizebox{0.7\textwidth}{!}{%
+\begin{tabular}{llccccc}
+\toprule
+Component & Model & easy & medium & hard & extra & all \\
+\midrule
+select & Original & 0.844 & 0.819 & 0.960 & 0.862 & 0.843 \\
+ & Adapted & 0.956 & 0.855 & 0.975 & 0.792 & 0.892 \\
+select (no AGG) & Original & 0.875 & 0.839 & 0.960 & 0.862 & 0.861 \\
+ & Adapted & 0.973 & 0.866 & 0.975 & 0.792 & 0.901 \\
+where & Original & 0.711 & 0.359 & 0.150 & 0.158 & 0.391 \\
+ & Adapted & 0.875 & 0.833 & 0.694 & 0.569 & 0.784 \\
+where (no OP) & Original & 0.711 & 0.391 & 0.200 & 0.368 & 0.438 \\
+ & Adapted & 0.896 & 0.833 & 0.726 & 0.667 & 0.808 \\
+group (no Having) & Original & 1.000 & 0.667 & 1.000 & 1.000 & 0.900 \\
+ & Adapted & 0.850 & 0.741 & 0.857 & 0.696 & 0.758 \\
+group & Original & 0.000 & 0.667 & 1.000 & 1.000 & 0.800 \\
+ & Adapted & 0.750 & 0.672 & 0.857 & 0.625 & 0.696 \\
+order & Original & 0.810 & 0.571 & 0.000 & 0.333 & 0.552 \\
+ & Adapted & 0.864 & 0.833 & 0.900 & 0.875 & 0.866 \\
+and/or & Original & 1.000 & 0.916 & 0.893 & 0.883 & 0.927 \\
+ & Adapted & 1.000 & 0.966 & 0.959 & 0.905 & 0.964 \\
+IUEN & Original & 0.000 & 0.000 & 0.000 & 0.000 & 0.000 \\
+ & Adapted & 0.000 & 0.000 & 0.400 & 0.231 & 0.288 \\
+keywords & Original & 0.800 & 0.591 & 0.240 & 0.310 & 0.572 \\
+ & Adapted & 0.928 & 0.906 & 0.803 & 0.811 & 0.878 \\
+\bottomrule
+\end{tabular}}
+\end{table}
 
 \subsection{Stage-wise Ablation: Did Our Expectations Hold?}
 \label{sec:rq3-ablation}
 
-To see which part of the method helps, table~\ref{tab:rq3-validation-accuracy-06b} reports accuracy on the held-out validation set of 707 questions after each stage. The rows correspond to table~\ref{tab:rq3-training-settings} as follows (counting table~\ref{tab:rq3-validation-accuracy-06b}'s first data row, ``Base model, original prompt*,'' as row 1): the warm start (row A) is validation row 3, the supervised control (row B) is row 4, VBI-FT (row C) is row 5, the combined lower-LR self-play branch (rows D+E) is row 6, and the higher-LR self-play branch (row F) is row 7.
+To see which part of the method helps, table~\ref{tab:rq3-validation-accuracy-06b} reports accuracy on the held-out validation set of 707 questions after each stage. The rows correspond to table~\ref{tab:rq3-training-settings} as follows (counting table~\ref{tab:rq3-validation-accuracy-06b}'s first data row, ``Base model, original prompt*,'' as row 1): the warm start row 3, the supervised control is row 4, VBI-FT is row 5, the combined lower-LR self-play branch is row 6, and the higher-LR self-play branch is row 7.
 
 \begin{table}[H]
 \centering
@@ -119,13 +154,13 @@ To see which part of the method helps, table~\ref{tab:rq3-validation-accuracy-06
 \toprule
 Stage & Validation accuracy \\
 \midrule
-Base model, original prompt* & 0.407 \\
-Base model, plan prompt, no training* & 0.050 \\
-Warm start on 1500 gold questions (plan format) & 0.622 \\
-+ 1500 further gold questions (supervised control) & 0.652 \\
-+ VBI-FT on the same 1500 questions (no gold SQL, hard questions only, 476 verified samples) & 0.651 \\
-+ self-play, lower learning rate (1e-5, 9 steps) & 0.631 \\
-+ self-play, higher learning rate (1e-4, 46 steps) & 0.034 \\
+1. Base model, original prompt* & 0.407 \\
+2. Base model, plan prompt, no training* & 0.050 \\
+3. Warm start on 1500 gold questions (plan format) & 0.622 \\
+4. + 1500 further gold questions (supervised control) & 0.652 \\
+5. + VBI-FT on the same 1500 questions (no gold SQL, hard questions only, 476 verified samples) & 0.651 \\
+6. + self-play, lower learning rate (1e-5, 9 steps) & 0.631 \\
+7. + self-play, higher learning rate (1e-4, 46 steps) & 0.034 \\
 \bottomrule
 \end{tabular}
 \end{table}

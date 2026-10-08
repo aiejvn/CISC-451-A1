@@ -36,7 +36,7 @@ notebook that reproduces every table and figure below from a live run.
 
 \section*{Task 4:}
 
-Generative AI tools were used in this assignment in a supporting capacity, with all substantive judgment and final work remaining my own. Claude was used to architect the scaffolding for the experiment runners and the Jupyter notebook, and I verified this code by running it, sampling its outputs, and manually checking them for correctness. I frequently had to fill in what the AI left incomplete, such as managing GPU memory and compute at runtime, and to correct experiment setup scripts that were set up incorrectly. I manually reviewed all output data and results and handwrote the first draft of the report myself. I then improved the report over several iterations, combining my own judgment with feedback from ChatGPT review agents.
+Generative AI tools were used in this assignment in a supporting capacity, with all substantive judgment and final work remaining my own. Claude was used to boostrap the scaffolding for the experiment runners and the Jupyter notebook, and I verified this code by running it, sampling its outputs, and manually checking them for correctness. I frequently had to fill in what the AI left incomplete, such as managing GPU memory and compute at runtime, and to correct experiment setup scripts that were set up incorrectly. I manually reviewed all output data and results and handwrote the first draft of the report myself. I then improved the report over several iterations, combining my own judgment with feedback from ChatGPT review agents.
 
 \section*{References}
 
@@ -126,12 +126,12 @@ Respond with only the SQL query in a ```sql code block.
 
 \section*{Appendix 2: Performance by Database (Task 1)}
 
-Referenced from 2.3 Performance by Database. Tables 5 and 6 report execution and exact matching accuracy on each of the 20 Spider dev databases, all of which are unseen by the models.
+Referenced from 2.3 Performance by Database. Tables ~\ref{tab:exec-acc-rq1-by-database} and ~\ref{tab:exact-acc-rq1-by-database} report execution and exact matching accuracy on each of the 20 Spider dev databases, all of which are unseen by the models.
 
 \begin{table}[H]
 \centering
 \footnotesize
-\caption{Table 5: Execution accuracy by database (domain).}
+\caption{Execution accuracy by database (domain).}
 \begin{tabular}{lcccc}
 \toprule
 Database & Problems (n) & Qwen3-0.6B & Qwen3-4B & DeepSeek-R1-Distill-Qwen-1.5B \\
@@ -157,6 +157,7 @@ battle\_death & 16 & 0.375 & 0.188 & 0.188 \\
 voter\_1 & 15 & 0.267 & 0.400 & 0.267 \\
 real\_estate\_properties & 4 & 0.500 & 0.500 & 0.000 \\
 \bottomrule
+\label{tab:exec-acc-rq1-by-database}
 \end{tabular}
 \end{table}
 
@@ -189,6 +190,7 @@ battle\_death & 16 & 0.250 & 0.188 & 0.062 \\
 voter\_1 & 15 & 0.133 & 0.400 & 0.200 \\
 real\_estate\_properties & 4 & 0.000 & 0.250 & 0.000 \\
 \bottomrule
+\label{tab:exact-acc-rq1-by-database}
 \end{tabular}
 \end{table}
 
