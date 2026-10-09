@@ -86,14 +86,11 @@ This gives 32 submetrics per reasoning metric per difficulty level. With 169 cor
 
 The Results below report Token Count and Information Retention by correctness and difficulty level, with the continuous submetrics used directly in the correlation analysis (Table~\ref{tab:rq2-correlations}).
 
-\textbf{Verification.} To check that the Spearman findings above are not artifacts of an unmodeled confound, we verify them with regression, reported in \ref{sec:rq2-robustness}. Token Count, Information Retention and difficulty are all correlated with one another, so a bivariate relationship between one feature and an outcome could simply be riding on the other two variables rather than reflecting an independent association. We fit two regression models to check this: a logistic regression of exact-match correctness on standardized log Token Count, standardized Information Retention, and standardized difficulty, all entered jointly; and a proportional-odds (ordinal) regression of difficulty on standardized log Token Count and standardized Information Retention, entered jointly. Token Count is log-transformed before standardizing given its heavy right skew (see above); difficulty enters the logistic model as a single linear control on the log-odds scale, which is a simplification rather than a full categorical treatment.
-
-We then check the two regression models' own assumptions, reported in \ref{sec:rq2-diagnostics}: the logistic regression's three predictors need to not be too collinear for its coefficients to be trustworthy, which we check with variance inflation factors; and the ordinal regression assumes a single, constant effect of each predictor across all three difficulty cutoffs (the proportional-odds assumption), which we check by comparing its pooled coefficients against three separately-fit cumulative-logit models, one per cutoff --- large, systematic drift across cutoffs would be evidence against the assumption. Both regression models and these diagnostics are implemented in \texttt{eval/evalpipeline/reasoning\_verification.py}, run on the same per-question table as the Spearman analysis.
 
 \section{RQ2: Results}
 \label{sec:rq2-results}
 
-We compute Token Count and Information Retention for all 1034 generations in DeepSeek-R1-Distill-Qwen-1.5B's main Task 1 run, and correlate each against difficulty and against all 32 per-question performance submetrics as described in the Methodology. Table~\ref{tab:rq2-descriptive-stats-tokencount} and table~\ref{tab:rq2-descriptive-stats-retention} give descriptive statistics for each feature by difficulty and by exact-match correctness; figure~\ref{fig:rq2-boxplots} shows the resulting distributions; table~\ref{tab:rq2-correlations} lists the strongest correlations.
+We compute Token Count and Information Retention for all 1034 generations in DeepSeek-R1-Distill-Qwen-1.5B's main Task 1 run, and correlate each against difficulty and against all 32 per-question performance submetrics as described in the Methodology. Tables ~\ref{tab:rq2-descriptive-stats-tokencount-difficulty}, ~\ref{tab:rq2-descriptive-stats-tokencount-correctness}, ~\ref{tab:rq2-descriptive-stats-retention-difficulty}, and~\ref{tab:rq2-descriptive-stats-retention-correctness} give descriptive statistics for each feature by difficulty and by exact-match correctness; figure~\ref{fig:rq2-boxplots} shows the resulting distributions; table~\ref{tab:rq2-correlations} lists the strongest correlations.
 
 \subsection{Descriptive statistics}
 \label{sec:rq2-descriptive-stats}
@@ -220,81 +217,81 @@ Information Retention & difficulty (overall) & all & 1017 & -0.107 & 0.013 \\
 \end{tabular}
 \end{table}
 
-\subsection{Verification: regression controlling for confounds}
-\label{sec:rq2-robustness}
+% \subsection{Verification: regression controlling for confounds}
+% \label{sec:rq2-robustness}
 
-Sections~\ref{sec:rq2-by-difficulty} and~\ref{sec:rq2-relationship-correctness} test each feature against performance one at a time, but Token Count, Information Retention, and difficulty are not independent of one another: a bivariate finding there could really be driven by one of the other two variables rather than by the feature itself. The regressions below fit all three predictors jointly as statistical models, so each coefficient reflects that predictor's relationship with the outcome after the parts explained by the other two are removed, directly checking whether the findings above survive or are confounded.
+% Sections~\ref{sec:rq2-by-difficulty} and~\ref{sec:rq2-relationship-correctness} test each feature against performance one at a time, but Token Count, Information Retention, and difficulty are not independent of one another: a bivariate finding there could really be driven by one of the other two variables rather than by the feature itself. The regressions below fit all three predictors jointly as statistical models, so each coefficient reflects that predictor's relationship with the outcome after the parts explained by the other two are removed, directly checking whether the findings above survive or are confounded.
 
-\begin{table}[H]
-\centering
-\footnotesize
-\caption{Logistic regression: exact match on standardized log Token Count, standardized Information Retention, and standardized difficulty, fit jointly ($n=1017$, pseudo $R^2=0.188$). OR is the odds ratio per one-SD increase in the predictor.}
-\label{tab:rq2-logistic}
-\begin{tabular}{lccccc}
-\toprule
-Predictor & coef & SE & $z$ & $p$ & OR [95\% CI] \\
-\midrule
-Intercept & -3.351 & 0.227 & -14.76 & $<$0.001 & 0.035 [0.022, 0.055] \\
-log Token Count ($z$) & -1.087 & 0.300 & -3.62 & $<$0.001 & 0.337 [0.187, 0.607] \\
-Information Retention ($z$) & 0.091 & 0.139 & 0.65 & 0.514 & 1.095 [0.834, 1.437] \\
-Difficulty ($z$) & -1.278 & 0.201 & -6.35 & $<$0.001 & 0.279 [0.188, 0.413] \\
-\bottomrule
-\end{tabular}
-\end{table}
+% \begin{table}[H]
+% \centering
+% \footnotesize
+% \caption{Logistic regression: exact match on standardized log Token Count, standardized Information Retention, and standardized difficulty, fit jointly ($n=1017$, pseudo $R^2=0.188$). OR is the odds ratio per one-SD increase in the predictor.}
+% \label{tab:rq2-logistic}
+% \begin{tabular}{lccccc}
+% \toprule
+% Predictor & coef & SE & $z$ & $p$ & OR [95\% CI] \\
+% \midrule
+% Intercept & -3.351 & 0.227 & -14.76 & $<$0.001 & 0.035 [0.022, 0.055] \\
+% log Token Count ($z$) & -1.087 & 0.300 & -3.62 & $<$0.001 & 0.337 [0.187, 0.607] \\
+% Information Retention ($z$) & 0.091 & 0.139 & 0.65 & 0.514 & 1.095 [0.834, 1.437] \\
+% Difficulty ($z$) & -1.278 & 0.201 & -6.35 & $<$0.001 & 0.279 [0.188, 0.413] \\
+% \bottomrule
+% \end{tabular}
+% \end{table}
 
-\begin{table}[H]
-\centering
-\footnotesize
-\caption{Proportional-odds (ordinal) regression: difficulty on standardized log Token Count and standardized Information Retention, fit jointly ($n=1017$). OR is the odds ratio per one-SD increase in the predictor.}
-\label{tab:rq2-ordinal}
-\begin{tabular}{lccccc}
-\toprule
-Predictor & coef & SE & $z$ & $p$ & OR [95\% CI] \\
-\midrule
-log Token Count ($z$) & 0.398 & 0.059 & 6.78 & $<$0.001 & 1.489 [1.327, 1.670] \\
-Information Retention ($z$) & -0.177 & 0.059 & -2.99 & 0.003 & 0.837 [0.746, 0.941] \\
-\bottomrule
-\end{tabular}
-\end{table}
+% \begin{table}[H]
+% \centering
+% \footnotesize
+% \caption{Proportional-odds (ordinal) regression: difficulty on standardized log Token Count and standardized Information Retention, fit jointly ($n=1017$). OR is the odds ratio per one-SD increase in the predictor.}
+% \label{tab:rq2-ordinal}
+% \begin{tabular}{lccccc}
+% \toprule
+% Predictor & coef & SE & $z$ & $p$ & OR [95\% CI] \\
+% \midrule
+% log Token Count ($z$) & 0.398 & 0.059 & 6.78 & $<$0.001 & 1.489 [1.327, 1.670] \\
+% Information Retention ($z$) & -0.177 & 0.059 & -2.99 & 0.003 & 0.837 [0.746, 0.941] \\
+% \bottomrule
+% \end{tabular}
+% \end{table}
 
-Controlling for the other feature and for difficulty changes which bivariate relationship survives. Token Count's association with correctness holds up: each one-SD increase in log Token Count is associated with 66\% lower odds of an exact match (OR$=0.337$, $p<0.001$), holding Information Retention and difficulty fixed (table~\ref{tab:rq2-logistic}) --- consistent with, and strengthening, finding~\ref{item:rq2-finding-tokencount-disobey}. Information Retention's association with correctness does not survive the same control (OR$=1.095$, $p=0.514$): once Token Count and difficulty are accounted for, Retention has no detectable independent effect on correctness, so the positive finding in \ref{item:rq2-finding-retention-performance} should be read as a submetric-specific, not a global, relationship. Both features' difficulty relationships, in contrast, are independent of one another: the ordinal regression finds Token Count still predicts higher difficulty (OR$=1.489$ per SD, $p<0.001$) and Information Retention still predicts lower difficulty (OR$=0.837$ per SD, $p=0.003$) when controlling for each other (table~\ref{tab:rq2-ordinal}), so neither difficulty trend in \ref{sec:rq2-by-difficulty} is simply a byproduct of the other feature's trend.
+% Controlling for the other feature and for difficulty changes which bivariate relationship survives. Token Count's association with correctness holds up: each one-SD increase in log Token Count is associated with 66\% lower odds of an exact match (OR$=0.337$, $p<0.001$), holding Information Retention and difficulty fixed (table~\ref{tab:rq2-logistic}) --- consistent with, and strengthening, finding~\ref{item:rq2-finding-tokencount-disobey}. Information Retention's association with correctness does not survive the same control (OR$=1.095$, $p=0.514$): once Token Count and difficulty are accounted for, Retention has no detectable independent effect on correctness, so the positive finding in \ref{item:rq2-finding-retention-performance} should be read as a submetric-specific, not a global, relationship. Both features' difficulty relationships, in contrast, are independent of one another: the ordinal regression finds Token Count still predicts higher difficulty (OR$=1.489$ per SD, $p<0.001$) and Information Retention still predicts lower difficulty (OR$=0.837$ per SD, $p=0.003$) when controlling for each other (table~\ref{tab:rq2-ordinal}), so neither difficulty trend in \ref{sec:rq2-by-difficulty} is simply a byproduct of the other feature's trend.
 
-\subsection{Regression diagnostics}
-\label{sec:rq2-diagnostics}
+% \subsection{Regression diagnostics}
+% \label{sec:rq2-diagnostics}
 
-The regressions in~\ref{sec:rq2-robustness} are only as trustworthy as their assumptions: if the three predictors are collinear, or if the ordinal model's proportional-odds assumption doesn't hold, the coefficients and significance levels reported there could be misleading rather than reflecting genuine independent effects. The checks below test both before those results are treated as confirmed.
+% The regressions in~\ref{sec:rq2-robustness} are only as trustworthy as their assumptions: if the three predictors are collinear, or if the ordinal model's proportional-odds assumption doesn't hold, the coefficients and significance levels reported there could be misleading rather than reflecting genuine independent effects. The checks below test both before those results are treated as confirmed.
 
-\begin{table}[H]
-\centering
-\footnotesize
-\caption{Variance inflation factors for the three predictors in the logistic regression (table~\ref{tab:rq2-logistic}).}
-\label{tab:rq2-vif}
-\begin{tabular}{lc}
-\toprule
-Predictor & VIF \\
-\midrule
-log Token Count ($z$) & 1.057 \\
-Information Retention ($z$) & 1.020 \\
-Difficulty ($z$) & 1.059 \\
-\bottomrule
-\end{tabular}
-\end{table}
+% \begin{table}[H]
+% \centering
+% \footnotesize
+% \caption{Variance inflation factors for the three predictors in the logistic regression (table~\ref{tab:rq2-logistic}).}
+% \label{tab:rq2-vif}
+% \begin{tabular}{lc}
+% \toprule
+% Predictor & VIF \\
+% \midrule
+% log Token Count ($z$) & 1.057 \\
+% Information Retention ($z$) & 1.020 \\
+% Difficulty ($z$) & 1.059 \\
+% \bottomrule
+% \end{tabular}
+% \end{table}
 
-\begin{table}[H]
-\centering
-\footnotesize
-\caption{Proportional-odds check: the pooled ordinal-regression coefficient (table~\ref{tab:rq2-ordinal}) against three separately-fit cumulative-logit models, one per difficulty cutoff. Large, systematic drift across cutoffs would indicate the proportional-odds assumption does not hold.}
-\label{tab:rq2-po-check}
-\begin{tabular}{lcccc}
-\toprule
-Cutoff & coef (Token Count) & SE & coef (Retention) & SE \\
-\midrule
-pooled (proportional-odds) & 0.398 & 0.059 & -0.177 & 0.059 \\
-$P(\text{difficulty} \geq \text{medium})$ & 0.576 & 0.117 & -0.128 & 0.081 \\
-$P(\text{difficulty} \geq \text{hard})$ & 0.396 & 0.066 & -0.195 & 0.067 \\
-$P(\text{difficulty} \geq \text{extra})$ & 0.271 & 0.074 & -0.193 & 0.078 \\
-\bottomrule
-\end{tabular}
-\end{table}
+% \begin{table}[H]
+% \centering
+% \footnotesize
+% \caption{Proportional-odds check: the pooled ordinal-regression coefficient (table~\ref{tab:rq2-ordinal}) against three separately-fit cumulative-logit models, one per difficulty cutoff. Large, systematic drift across cutoffs would indicate the proportional-odds assumption does not hold.}
+% \label{tab:rq2-po-check}
+% \begin{tabular}{lcccc}
+% \toprule
+% Cutoff & coef (Token Count) & SE & coef (Retention) & SE \\
+% \midrule
+% pooled (proportional-odds) & 0.398 & 0.059 & -0.177 & 0.059 \\
+% $P(\text{difficulty} \geq \text{medium})$ & 0.576 & 0.117 & -0.128 & 0.081 \\
+% $P(\text{difficulty} \geq \text{hard})$ & 0.396 & 0.066 & -0.195 & 0.067 \\
+% $P(\text{difficulty} \geq \text{extra})$ & 0.271 & 0.074 & -0.193 & 0.078 \\
+% \bottomrule
+% \end{tabular}
+% \end{table}
 
-The three predictors in the logistic regression are not meaningfully collinear (all VIF $\approx 1.0$--$1.06$, well below the common rule-of-thumb threshold of 5, table~\ref{tab:rq2-vif}), so the coefficient estimates and significance levels reported in \ref{sec:rq2-robustness} are not an artifact of Token Count, Information Retention and difficulty standing in for one another. The proportional-odds check is more mixed. Information Retention's cumulative-logit coefficient is stable across all three cutoffs ($-0.128$, $-0.195$, $-0.193$, table~\ref{tab:rq2-po-check}), consistent with the pooled $-0.177$ and with the proportional-odds assumption holding for this feature. Token Count's coefficient, however, declines monotonically across cutoffs (0.576 at the easy/medium boundary, down to 0.271 at the hard/extra boundary): Token Count distinguishes difficulty levels well at the low end but loses discriminative power at the high end, a mild violation of the proportional-odds assumption that the single pooled coefficient in table~\ref{tab:rq2-ordinal} averages over. This does not overturn the ordinal regression's conclusion that Token Count predicts difficulty (every individual cutoff coefficient is still positive and more than 3 standard errors from zero), but it means the pooled OR$=1.489$ should be read as an average effect across difficulty levels rather than a uniform one.
+% The three predictors in the logistic regression are not meaningfully collinear (all VIF $\approx 1.0$--$1.06$, well below the common rule-of-thumb threshold of 5, table~\ref{tab:rq2-vif}), so the coefficient estimates and significance levels reported in \ref{sec:rq2-robustness} are not an artifact of Token Count, Information Retention and difficulty standing in for one another. The proportional-odds check is more mixed. Information Retention's cumulative-logit coefficient is stable across all three cutoffs ($-0.128$, $-0.195$, $-0.193$, table~\ref{tab:rq2-po-check}), consistent with the pooled $-0.177$ and with the proportional-odds assumption holding for this feature. Token Count's coefficient, however, declines monotonically across cutoffs (0.576 at the easy/medium boundary, down to 0.271 at the hard/extra boundary): Token Count distinguishes difficulty levels well at the low end but loses discriminative power at the high end, a mild violation of the proportional-odds assumption that the single pooled coefficient in table~\ref{tab:rq2-ordinal} averages over. This does not overturn the ordinal regression's conclusion that Token Count predicts difficulty (every individual cutoff coefficient is still positive and more than 3 standard errors from zero), but it means the pooled OR$=1.489$ should be read as an average effect across difficulty levels rather than a uniform one.

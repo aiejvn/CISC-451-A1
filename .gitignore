@@ -217,5 +217,6 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-eval/results/**mock_spider/
+eval/results/**
+mock_spider/
 train/runs/
