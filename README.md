@@ -1,7 +1,6 @@
 # CISC 451 — A1: Cross-Domain Text-to-SQL
 
-Repo setup guide. For the write-up (research questions, methodology, results, discussion), see
-[`report/main.tex`](report/main.tex) (pulls in `report/RQ1.tex`, `RQ2.tex`, `RQ3.tex`). For a single
+Repo setup guide. For a single
 notebook that re-runs the whole pipeline and regenerates every table and figure in the report live, see
 [`RQ1_RQ2_RQ3.ipynb`](RQ1_RQ2_RQ3.ipynb).
 
@@ -9,7 +8,6 @@ notebook that re-runs the whole pipeline and regenerates every table and figure 
 
 | Path | What it is |
 |---|---|
-| `report/` | The report: `main.tex` + `RQ1.tex`/`RQ2.tex`/`RQ3.tex` (methodology, results, discussion per RQ). |
 | `RQ1_RQ2_RQ3.ipynb` | Executable notebook that reproduces every table/figure in the report from a live run. |
 | `eval/evalpipeline/` | RQ1/RQ2 pipeline: prompting, generation, Spider evaluation, reasoning-trace analysis. |
 | `eval/configs/models.yaml` | The three models compared in RQ1 (repo id, quantization, token budget, thinking mode). |
@@ -133,7 +131,3 @@ performs steps 3–5 above itself — including live model inference and the ful
 expect it to take hours end-to-end on first run; every heavy cell checks whether its output already exists
 and skips the work if so, so re-running after an interruption only repeats what didn't finish. See the
 notebook's own first cell for the full runtime/idempotency notes.
-
-## License
-
-MIT — see [`LICENSE`](LICENSE). `spider/` is a separate upstream repository under its own license.
